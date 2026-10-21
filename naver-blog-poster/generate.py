@@ -16,7 +16,7 @@ from PIL import Image
 from pydantic import BaseModel
 
 from common import (DRAFT_FILE, REFERENCE_FILE, REFERENCES_DIR, ROOT, TOPIC_FILE,
-                    Block, Draft, list_images, load_config, post_folders,
+                    Block, Draft, list_images, load_config, post_folders, post_kind,
                     resolve_folder, write_draft)
 
 MAX_SIDE = 1568  # API로 보낼 때만 줄임. 블로그에는 원본이 올라감.
@@ -73,19 +73,11 @@ def encode_image(path: Path) -> tuple[str, str]:
     return "image/jpeg", base64.standard_b64encode(buf.getvalue()).decode()
 
 
-def reference_kind(folder: Path) -> str:
-    """topic.txt 첫 줄이 '종류: 출고후기' 이면 references/출고후기/ 를 쓴다."""
-    first = (folder / TOPIC_FILE).read_text(encoding="utf-8-sig").splitlines()[:1]
-    if first and first[0].replace("：", ":").startswith("종류:"):
-        return first[0].split(":", 1)[1].strip()
-    return ""
-
-
 def load_references(folder: Path) -> list[str]:
     own = folder / REFERENCE_FILE
     if own.exists():
         return [own.read_text(encoding="utf-8-sig")]
-    kind = reference_kind(folder)
+    kind = post_kind(folder)
     base = REFERENCES_DIR / kind if kind else REFERENCES_DIR
     if kind and not base.is_dir():
         print(f"[주의] references/{kind} 폴더가 없어 references 의 글을 씁니다.")

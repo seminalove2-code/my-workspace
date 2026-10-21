@@ -47,6 +47,14 @@ def resolve_folder(arg: str) -> Path:
     return p.resolve()
 
 
+def post_kind(folder: Path) -> str:
+    """topic.txt 첫 줄이 '종류: 출고후기' 이면 references/출고후기/ 를 따라 쓰고 '출고후기' 카테고리에 올린다."""
+    first = (folder / TOPIC_FILE).read_text(encoding="utf-8-sig").splitlines()[:1]
+    if first and first[0].replace("：", ":").startswith("종류:"):
+        return first[0].split(":", 1)[1].strip()
+    return ""
+
+
 # ── draft.md 형식 ──
 # # 제목
 # 태그: 태그1, 태그2

@@ -10,7 +10,7 @@ set KIND=
 set COUNT=
 set /p URL=블로그 또는 글 주소 (그냥 Enter 누르면 종료): 
 if "%URL%"=="" exit /b
-set /p KIND=글 종류 이름 (예: 출고후기, 차량소개 / 없으면 Enter): 
+set /p KIND=글 종류 이름 (예: 출고후기, 차량정보 / 없으면 Enter): 
 set /p COUNT=가져올 글 개수 (기본 5, Enter): 
 if "%COUNT%"=="" set COUNT=5
 python fetch_reference.py "%URL%" "%KIND%" %COUNT%

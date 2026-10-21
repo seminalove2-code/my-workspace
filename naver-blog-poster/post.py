@@ -14,8 +14,8 @@ from pathlib import Path
 from playwright.sync_api import FrameLocator, Page, TimeoutError as PWTimeout, sync_playwright
 
 from browser import open_browser
-from common import (DRAFT_FILE, POSTED_FILE, ROOT, Draft, load_config, post_folders,
-                    read_draft, resolve_folder)
+from common import (DRAFT_FILE, POSTED_FILE, ROOT, TOPIC_FILE, Draft, load_config, post_folders,
+                    post_kind, read_draft, resolve_folder)
 
 # 네이버 에디터 화면이 바뀌면 여기만 고치면 된다.
 SEL = {
@@ -142,13 +142,12 @@ def fill_editor(page: Page, ed: FrameLocator, folder: Path, draft: Draft) -> Non
         pause()
 
 
-def open_publish_layer(ed: FrameLocator, cfg: dict, tags: list[str]) -> None:
+def open_publish_layer(ed: FrameLocator, category: str, tags: list[str]) -> None:
     ed.locator(SEL["publish_open"]).first.click()
     layer = ed.locator(SEL["publish_layer"]).first
     layer.wait_for(timeout=10000)
     pause()
 
-    category = (cfg.get("category") or "").strip()
     if category:
         try:
             layer.locator(SEL["category_button"]).first.click(timeout=3000)
@@ -167,6 +166,8 @@ def open_publish_layer(ed: FrameLocator, cfg: dict, tags: list[str]) -> None:
 
 def post_one(page: Page, cfg: dict, folder: Path, test: bool) -> None:
     draft = read_draft(folder / DRAFT_FILE)
+    kind = post_kind(folder) if (folder / TOPIC_FILE).exists() else ""
+    category = ((cfg.get("categories") or {}).get(kind) or cfg.get("category") or "").strip()
     print(f"[입력 중] {folder.name}: {draft.title}")
 
     page.goto(f"https://blog.naver.com/{cfg['blog_id']}?Redirect=Write&")
@@ -182,12 +183,12 @@ def post_one(page: Page, cfg: dict, folder: Path, test: bool) -> None:
     fill_editor(page, ed, folder, draft)
 
     if test:
-        open_publish_layer(ed, cfg, draft.tags)
+        open_publish_layer(ed, category, draft.tags)
         input("[테스트] 발행 직전까지 입력했습니다. 브라우저에서 확인 후 Enter 를 누르면 창을 닫습니다 (발행 안 함)...")
         return
 
     if cfg.get("publish", True):
-        open_publish_layer(ed, cfg, draft.tags)
+        open_publish_layer(ed, category, draft.tags)
         ed.locator(SEL["publish_layer"]).first.locator(SEL["publish_confirm"]).first.click()
         page.wait_for_url(lambda url: "Redirect=Write" not in url, timeout=30000)
         result = page.url
