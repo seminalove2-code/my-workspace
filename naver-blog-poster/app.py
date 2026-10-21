@@ -35,8 +35,9 @@ import login
 import post
 import task_schedule
 import settings_io
-from common import (BLUR_DIR, DRAFT_FILE, IMAGE_LINE, POSTED_FILE, POSTS_DIR, TOPIC_FILE, IMAGE_EXTS,
-                    list_images, load_config, needs_blur, read_draft, upload_image)
+from common import (BLUR_DIR, CARD_DIR, CARD_FILE, DRAFT_FILE, POSTED_FILE, POSTS_DIR, THUMB_FILE, TOPIC_FILE, IMAGE_EXTS,
+                    Block, Draft, list_images, load_config, needs_blur, read_draft, upload_image)
+from common import write_draft as save_draft_file
 
 PRICE_FILE = ROOT / "data" / "가격표.txt"
 KINDS = ["출고후기", "차량정보", "프로모션", "일상기록", "상담견적"]
@@ -79,43 +80,14 @@ def safe_name(text: str) -> str:
     return re.sub(r'[\\/:*?"<>|]', "", text).strip()[:40] or "글"
 
 
-def gallery_items(folder: Path, cfg: dict) -> list[tuple[str, str]]:
-    items = []
-    for img in list_images(folder):
-        shown = upload_image(cfg, folder, img.name) or img
-        items.append((str(shown), img.name))
-    return items
-
-
 def blur_report(folder: Path) -> str:
     report = folder / BLUR_DIR / "가림_결과.txt"
     if not report.exists():
         return ""
     lines = report.read_text(encoding="utf-8").splitlines()
     missed = [l for l in lines if "못 찾음" in l or "실패" in l]
-    head = f"번호판 가림: {len(lines)}장 처리"
-    return head + (" — 아래 사진은 직접 확인하세요\n" + "\n".join(missed) if missed else " — 모든 사진에서 번호판을 찾았습니다")
-
-
-def preview_md(folder: str, text: str) -> str:
-    """미리보기: [사진: x] 자리에 실제 사진(가린 사본)을 보여주고 줄바꿈을 살린다."""
-    if not text:
-        return ""
-    cfg = load_config()
-    out = []
-    for line in text.splitlines():
-        m = IMAGE_LINE.match(line.strip())
-        if m and folder:
-            img = upload_image(cfg, Path(folder), m.group(1))
-            out.append(f'<img src="/gradio_api/file={img.as_posix()}?t={int(img.stat().st_mtime)}" width="420">' if img
-                       else f"⚠️ 사진 없음: {m.group(1)}")
-        elif line.startswith(("# ", "## ")):
-            out.append(line)
-        elif line.startswith("> "):
-            out.append(f"> **{line[2:]}**")
-        else:
-            out.append(line + "  ")  # 마크다운에서 줄바꿈 유지
-    return "\n".join(out)
+    head = f"🔒 번호판 가림: {len(lines)}장 처리"
+    return head + (" — ⚠️ 아래 사진은 직접 확인하세요  \n" + "  \n".join(missed) if missed else " — 모든 사진에서 번호판을 찾았어요")
 
 
 def status_of(folder: Path) -> str:
@@ -127,14 +99,122 @@ def status_of(folder: Path) -> str:
     return "초안" if (folder / DRAFT_FILE).exists() else "작성 전"
 
 
-# ── 글 쓰기 탭 ──
+# ── 글 편집기 ──
+# 글은 [[종류, 내용], ...] 목록으로 다룬다. 종류: paragraph / quote / heading / image
+# 블록을 고칠 때마다 draft.md 에 바로 저장한다 (저장 버튼 없음).
 
-def make_post(kind, trim, ext_color, int_color, story, photos, plate_mode):
+def load_post(folder: Path) -> tuple[str, str, list[list[str]]]:
+    if not (folder / DRAFT_FILE).exists():
+        return "", "", []
+    d = read_draft(folder / DRAFT_FILE)
+    return d.title, ", ".join(d.tags), [[b.kind, b.text] for b in d.blocks]
+
+
+def store(folder, title, tags, blocks) -> None:
+    if not folder:
+        raise gr.Error("먼저 글을 만들어 주세요.")
+    tag_list = [t.strip().lstrip("#").replace(" ", "") for t in (tags or "").split(",") if t.strip()]
+    save_draft_file(Path(folder) / DRAFT_FILE, Draft((title or "").strip() or "제목 없음", tag_list,
+                                                     [Block(k, t) for k, t in blocks]))
+
+
+def unused(folder, blocks) -> list[str]:
+    """글 폴더에 있지만 글에 안 들어간 사진 (다시 넣을 수 있게)"""
+    if not folder:
+        return []
+    folder = Path(folder)
+    names = [p.name for p in list_images(folder)]
+    names += [n for n in (THUMB_FILE, CARD_FILE) if (folder / CARD_DIR / n).exists()]
+    used = {t for k, t in blocks if k == "image"}
+    return [n for n in names if n not in used]
+
+
+def opened(folder: Path, log: str = "", note: str | None = None):
+    """글 폴더를 편집 화면에 띄운다. OPEN 출력과 순서가 같다."""
+    cfg = load_config()
+    title, tags, blocks = load_post(folder)
+    if note is None:
+        note = blur_report(folder) if needs_blur(cfg, folder) else ""
+    return (str(folder), note, title, tags, blocks, time.time(), log,
+            gr.Dropdown(choices=unused(folder, blocks), value=None))
+
+
+def changed(folder, title, tags, blocks):
+    """순서·사진이 바뀐 뒤: 저장하고 화면을 다시 그린다."""
+    store(folder, title, tags, blocks)
+    return blocks, time.time(), gr.Dropdown(choices=unused(folder, blocks), value=None)
+
+
+def move_block(folder, title, tags, blocks, i, step):
+    j = i + step
+    if 0 <= j < len(blocks):
+        blocks[i], blocks[j] = blocks[j], blocks[i]
+    return changed(folder, title, tags, blocks)
+
+
+def remove_block(folder, title, tags, blocks, i):
+    blocks.pop(i)
+    return changed(folder, title, tags, blocks)
+
+
+def add_text_below(folder, title, tags, blocks, i):
+    blocks.insert(i + 1, ["paragraph", ""])
+    return changed(folder, title, tags, blocks)
+
+
+def set_text(folder, title, tags, blocks, i, value):
+    if i < len(blocks) and blocks[i][1] != value:
+        blocks[i][1] = value
+        store(folder, title, tags, blocks)
+    return blocks
+
+
+def add_photo(folder, title, tags, blocks, name):
+    if not name:
+        raise gr.Error("넣을 사진을 고르세요.")
+    blocks.append(["image", name])
+    gr.Info("글 맨 아래에 넣었어요. ⬆ 버튼으로 원하는 자리까지 올리세요.")
+    return changed(folder, title, tags, blocks)
+
+
+def replace_photo(folder, blocks, i, new_file):
+    folder, cfg, name = Path(folder), load_config(), blocks[i][1]
+    if name in (CARD_FILE, THUMB_FILE):
+        raise gr.Error("썸네일·스펙 카드는 바꿀 수 없어요. 썸네일은 다른 사진의 [썸네일로] 버튼을 누르세요.")
+    target = (folder / BLUR_DIR / name) if needs_blur(cfg, folder) else (folder / name)
+    target.parent.mkdir(exist_ok=True)
+    Image.open(new_file).convert("RGB").save(target, quality=92)
+    if card.load_card_data(folder):  # 썸네일에 들어간 사진일 수 있으니 다시 그린다
+        card.render(folder, cfg)
+    gr.Info(f"{name} 사진을 바꿨어요.")
+    return time.time()
+
+
+def use_for_thumb(folder, blocks, i):
+    folder = Path(folder)
+    if not card.load_card_data(folder):
+        raise gr.Error("이 글에는 썸네일이 없어요. (출고후기·차량정보 글에만 만들어요)")
+    card.set_card_photo(folder, blocks[i][1], "thumb_photo")
+    card.render(folder)
+    gr.Info("썸네일 사진을 바꿨어요.")
+    return time.time()
+
+
+def move_thumb(folder, pos):
+    if not folder or not card.load_card_data(Path(folder)):
+        raise gr.Error("이 글에는 썸네일이 없어요.")
+    card.set_thumb_pos(Path(folder), pos)
+    card.render(Path(folder))
+    return time.time()
+
+
+# ── 글 쓰기 ──
+
+def make_post(kind, trim, ext_color, int_color, story, photos, already_blurred):
     if not trim:
         raise gr.Error("차량을 골라주세요.")
     if not photos:
         raise gr.Error("사진을 넣어주세요.")
-    cfg = load_config()
     folder = POSTS_DIR / f"{datetime.now():%Y%m%d_%H%M}_{safe_name(trim)}"
     folder.mkdir(parents=True, exist_ok=True)
     bad = []
@@ -148,24 +228,20 @@ def make_post(kind, trim, ext_color, int_color, story, photos, plate_mode):
         gr.Warning(f"이 파일은 사진 형식이 아니라 뺐습니다: {', '.join(bad)} (아이폰 HEIC는 jpg로 바꿔주세요)")
     vehicle = " / ".join(x for x in (trim, ext_color.strip(), int_color.strip()) if x)
     lines = [f"종류: {kind}", f"차량: {vehicle}", f"출고: {datetime.now():%Y년 %m월}"]
-    if plate_mode == "이미 가렸음":
+    if already_blurred:
         lines.append("번호판: 직접 가림")
     if story.strip():
         lines += ["고객 이야기:", story.strip()]
     (folder / TOPIC_FILE).write_text("\n".join(lines) + "\n", encoding="utf-8")
-    return write_draft(folder)
+    return ai_write(folder)
 
 
-def write_draft(folder: Path):
-    cfg = load_config()
+def ai_write(folder: Path):
     load_dotenv(ROOT / ".env", override=True)
-    _, log = run_captured(generate.generate, cfg, folder)
-    draft = folder / DRAFT_FILE
-    text = draft.read_text(encoding="utf-8") if draft.exists() else ""
-    if not text:
-        gr.Warning("글을 만들지 못했습니다. 아래 진행 기록을 확인하세요.")
-    note = blur_report(folder) if needs_blur(cfg, folder) else "번호판: 직접 가린 사진을 그대로 씁니다."
-    return (str(folder), gallery_items(folder, cfg), note, text, preview_md(str(folder), text), log)
+    _, log = run_captured(generate.generate, load_config(), folder)
+    if not (folder / DRAFT_FILE).exists():
+        gr.Warning("글을 만들지 못했습니다. 아래 [진행 기록]을 확인하세요.")
+    return opened(folder, log)
 
 
 def rewrite(folder):
@@ -173,91 +249,45 @@ def rewrite(folder):
         raise gr.Error("먼저 글을 만들어 주세요.")
     folder = Path(folder)
     (folder / DRAFT_FILE).unlink(missing_ok=True)
-    return write_draft(folder)
+    return ai_write(folder)
 
 
-def add_cards_only(folder, text):
+def add_cards_only(folder, title, tags, blocks):
     if not folder:
-        raise gr.Error("먼저 [지난 글]에서 글을 불러오거나 글을 만들어 주세요.")
+        raise gr.Error("먼저 글을 만들거나 [지난 글]에서 불러오세요.")
     folder = Path(folder)
     if generate.post_kind(folder) not in ("출고후기", "차량정보"):
         raise gr.Error("썸네일·스펙 카드는 출고후기와 차량정보 글에만 넣어요.")
+    store(folder, title, tags, blocks)
     load_dotenv(ROOT / ".env", override=True)
     try:
-        new_text = generate.add_cards(load_config(), folder, text)
+        text = generate.add_cards(load_config(), folder, (folder / DRAFT_FILE).read_text(encoding="utf-8"))
     except ai_providers.AIError as e:
         raise gr.Error(f"카드 값을 받지 못했습니다: {e}")
-    (folder / DRAFT_FILE).write_text(new_text, encoding="utf-8")
-    gr.Info("본문은 그대로 두고 썸네일과 스펙 카드를 넣었습니다.")
-    return new_text, preview_md(str(folder), new_text)
+    (folder / DRAFT_FILE).write_text(text, encoding="utf-8")
+    gr.Info("본문은 그대로 두고 썸네일과 스펙 카드를 넣었어요.")
+    return opened(folder)
 
 
-def save_draft(folder, text):
-    if not folder:
-        raise gr.Error("먼저 글을 만들어 주세요.")
-    (Path(folder) / DRAFT_FILE).write_text(text, encoding="utf-8")
-    return preview_md(folder, text)
-
-
-def replace_photo(folder, selected, new_file):
-    if not folder or not selected:
-        raise gr.Error("위 사진 목록에서 바꿀 사진을 먼저 클릭하세요.")
-    if not new_file:
-        raise gr.Error("바꿔 넣을 사진을 올려주세요.")
-    folder, cfg = Path(folder), load_config()
-    target = (folder / BLUR_DIR / selected) if needs_blur(cfg, folder) else (folder / selected)
-    target.parent.mkdir(exist_ok=True)
-    Image.open(new_file).convert("RGB").save(target, quality=92)
-    if card.load_card_data(folder):  # 카드에 들어간 사진일 수 있으니 다시 그린다
-        card.render(folder, cfg)
-    gr.Info(f"{selected} 사진을 바꿨습니다.")
-    return gallery_items(folder, cfg), None
-
-
-def use_for_card(folder, selected, text, which="thumb_photo"):
-    if not folder or not selected:
-        raise gr.Error("위 사진 목록에서 썸네일에 쓸 사진을 먼저 클릭하세요.")
+def upload_to_naver(folder, title, tags, blocks):
+    store(folder, title, tags, blocks)
     folder = Path(folder)
-    if not card.load_card_data(folder):
-        raise gr.Error("이 글에는 썸네일이 없습니다. (출고후기·차량정보 글에만 만들어요)")
-    card.set_card_photo(folder, selected, which)
-    card.render(folder)
-    gr.Info(f"썸네일 사진을 {selected}(으)로 바꿨습니다.")
-    return preview_md(str(folder), text)
-
-
-def move_thumb(folder, pos, text):
-    if not folder:
-        raise gr.Error("먼저 글을 만들어 주세요.")
-    folder = Path(folder)
-    if not card.load_card_data(folder):
-        raise gr.Error("이 글에는 썸네일이 없습니다. (출고후기·차량정보 글에만 만들어요)")
-    card.set_thumb_pos(folder, pos)
-    card.render(folder)
-    return preview_md(str(folder), text)
-
-
-def on_select(evt: gr.SelectData, folder):
-    items = gallery_items(Path(folder), load_config()) if folder else []
-    name = items[evt.index][1] if 0 <= evt.index < len(items) else ""
-    return name, f"선택한 사진: {name}"
-
-
-def upload_to_naver(folder, text):
-    if not folder:
-        raise gr.Error("먼저 글을 만들어 주세요.")
-    folder = Path(folder)
-    save_draft(str(folder), text)
-    read_draft(folder / DRAFT_FILE)  # 제목 없는 글이면 여기서 알려준다
     cfg = load_config()
     kind = generate.post_kind(folder)
     published = guide.publish_now(cfg) if kind == guide.KIND else False if kind == "출고후기" else cfg.get("publish")
     done, log = run_captured(post.run_posts, cfg, [folder])
     if done:
-        gr.Info("발행했습니다." if published else "임시저장했습니다. 네이버 블로그에서 확인 후 발행하세요.")
+        (folder / guide.QUEUE_FILE).unlink(missing_ok=True)
+        gr.Info("발행했어요." if published else "임시저장했어요. 네이버 블로그에서 확인 후 발행하세요.")
     else:
-        gr.Warning("올리지 못했습니다. 아래 기록을 확인하세요.")
+        gr.Warning("올리지 못했습니다. [진행 기록]을 확인하세요.")
     return log
+
+
+def queue_post(folder, title, tags, blocks):
+    store(folder, title, tags, blocks)
+    (Path(folder) / guide.QUEUE_FILE).write_text(f"{datetime.now():%Y-%m-%d %H:%M} 예약\n", encoding="utf-8")
+    gr.Info("다음 아침 8:30~9:30 사이에 자동으로 올려요. ([총정리 글] 탭에서 매일 자동이 켜져 있어야 해요)")
 
 
 # ── 총정리 글 탭 ──
@@ -287,10 +317,9 @@ def guide_make(series):
     if not folder:
         raise gr.Error(f"글을 만들지 못했습니다.\n{log}")
     cfg = load_config()
-    text = (folder / DRAFT_FILE).read_text(encoding="utf-8")
-    note = ("이 글은 바로 발행됩니다." if guide.publish_now(cfg)
-            else f"처음 {cfg.get('guide_review_count', 3)}편은 임시저장돼요. 네이버에서 확인 후 직접 발행하고, 아래 [총정리 글] 탭에 주소를 넣어주세요.")
-    return (str(folder), gallery_items(folder, cfg), note, text, preview_md(str(folder), text), log, gr.Tabs(selected="write"))
+    note = ("이 총정리 글은 바로 발행돼요." if guide.publish_now(cfg)
+            else f"처음 {cfg.get('guide_review_count', 3)}편은 임시저장돼요. 네이버에서 확인 후 직접 발행하고, [총정리 글] 탭에 주소를 넣어주세요.")
+    return (*opened(folder, log, note), gr.Tabs(selected="write"))
 
 
 def guide_thumb(series, photo):
@@ -322,16 +351,6 @@ def guide_schedule(on, at):
     return task_schedule.status()
 
 
-def queue_post(folder, text):
-    if not folder:
-        raise gr.Error("먼저 글을 만들어 주세요.")
-    folder = Path(folder)
-    save_draft(str(folder), text)
-    read_draft(folder / DRAFT_FILE)
-    (folder / guide.QUEUE_FILE).write_text(f"{datetime.now():%Y-%m-%d %H:%M} 예약\n", encoding="utf-8")
-    gr.Info("다음 아침 8:30~9:30 사이에 자동으로 올립니다. ([총정리 글] 탭에서 매일 자동이 켜져 있어야 해요)")
-
-
 # ── 지난 글 탭 ──
 
 def history():
@@ -350,11 +369,8 @@ def load_old(name):
     if not name:
         raise gr.Error("불러올 글을 고르세요.")
     folder = POSTS_DIR / name
-    cfg = load_config()
-    draft = folder / DRAFT_FILE
-    text = draft.read_text(encoding="utf-8") if draft.exists() else ""
-    return (str(folder), gallery_items(folder, cfg), blur_report(folder), text, preview_md(str(folder), text),
-            f"불러옴: {name} ({status_of(folder)})", gr.Tabs(selected="write"))
+    return (*opened(folder, f"불러옴: {name} ({status_of(folder)})"), gr.Tabs(selected="write"))
+
 
 
 # ── 설정 탭 ──
@@ -434,136 +450,206 @@ def quit_app():
 
 # ── 화면 ──
 
+THEME = gr.themes.Soft(primary_hue="blue", neutral_hue="slate",
+                       font=[gr.themes.GoogleFont("Noto Sans KR"), "Malgun Gothic", "sans-serif"])
+CSS = """
+footer {display:none !important}
+.gradio-container {max-width: 1320px !important}
+.panel {background: var(--block-background-fill); border:1px solid var(--border-color-primary); border-radius:16px; padding:18px !important}
+.blk {border:1px solid var(--border-color-primary); border-radius:12px; padding:6px 8px !important; gap:6px !important}
+.blk-img img {max-height:300px; object-fit:contain}
+.tools {gap:4px !important; flex-wrap:nowrap !important}
+.tools button {min-width:0 !important; padding:4px 8px !important; font-size:13px !important}
+.quote textarea {font-weight:700; border-left:4px solid #1c69d4 !important}
+.hint {color: var(--body-text-color-subdued); font-size:13px}
+#make-btn, #queue-btn {font-size:17px !important; min-height:52px}
+"""
+KIND_LABEL = {"quote": "인용구 소제목", "heading": "굵은 글씨 한 줄", "paragraph": "문단"}
+
+
 def build() -> gr.Blocks:
     with gr.Blocks(title="BMW 블로그 글쓰기") as demo:
         folder = gr.State("")
-        selected = gr.State("")
-        gr.Markdown("## BMW 최현정 대리 블로그 글쓰기")
+        blocks = gr.State([])
+        ver = gr.State(0.0)  # 바뀌면 글 블록을 다시 그린다
+        gr.Markdown("## 🩶 BMW 최현정 대리 블로그")
         with gr.Tabs() as tabs:
-            with gr.Tab("글 쓰기", id="write"):
-                with gr.Row():
-                    with gr.Column():
-                        kind = gr.Dropdown(KINDS, value="출고후기", label="글 종류")
-                        trim = gr.Dropdown(vehicle_choices(), label="차량 (가격표에서 고르기, 검색 가능)",
-                                           allow_custom_value=True, filterable=True)
-                        price = gr.Markdown()
+            with gr.Tab("✍️ 글 쓰기", id="write"):
+                with gr.Row(equal_height=False):
+                    # ① 왼쪽: 정보 넣기
+                    with gr.Column(scale=4, min_width=360, elem_classes="panel"):
+                        gr.Markdown("### ① 정보 넣기")
+                        kind = gr.Radio(KINDS, value="출고후기", label="글 종류")
+                        trim = gr.Dropdown(vehicle_choices(), value=None, label="차량 (검색 가능)", allow_custom_value=True, filterable=True)
+                        price = gr.Markdown(elem_classes="hint")
                         with gr.Row():
-                            ext_color = gr.Textbox(label="외장 색상", placeholder="예: 브루클린 그레이")
-                            int_color = gr.Textbox(label="시트 색상", placeholder="예: 블랙")
-                        story = gr.Textbox(label="고객 이야기 (선택) — 카톡으로 받은 글을 그대로 붙여넣으세요",
-                                           lines=8, placeholder="모르면 비워두세요. AI가 차량 중심으로 씁니다.")
-                    with gr.Column():
-                        photos = gr.File(label="사진 (여러 장을 한 번에 끌어다 놓으세요)",
-                                         file_count="multiple", file_types=["image"], type="filepath")
-                        plate_mode = gr.Radio(["자동으로 가리기", "이미 가렸음"], value="자동으로 가리기",
-                                              label="번호판")
-                        make_btn = gr.Button("✍️ 글 만들기", variant="primary", size="lg")
-                gr.Markdown("### 미리보기")
-                plate_note = gr.Textbox(label="번호판 확인", lines=2, interactive=False)
-                gallery = gr.Gallery(label="블로그에 올라갈 사진 (사진을 클릭하면 바꿀 수 있어요)",
-                                     columns=6, height=260, allow_preview=True)
-                with gr.Row():
-                    sel_note = gr.Markdown("")
-                    new_photo = gr.File(label="바꿔 넣을 사진", file_types=["image"], type="filepath")
-                    swap_btn = gr.Button("선택한 사진 바꾸기")
-                    thumb_btn = gr.Button("🖼️ 이 사진을 썸네일에 쓰기")
-                thumb_pos = gr.Slider(0, 100, value=75, step=5, label="썸네일 사진 위치 (작게: 위쪽 보이기 · 크게: 아래쪽 보이기)")
-                with gr.Row():
-                    editor = gr.Textbox(label="글 (여기서 바로 고칠 수 있어요)", lines=28)
-                    preview = gr.Markdown(label="보이는 모양", height=640)
-                with gr.Row():
-                    save_btn = gr.Button("💾 고친 내용 저장")
-                    redo_btn = gr.Button("🔄 다시 쓰기")
-                    cards_btn = gr.Button("🖼️ 썸네일·스펙 카드만 추가")
-                    queue_btn = gr.Button("⏰ 아침 8:30~9:30에 올리기", variant="primary")
-                    upload_btn = gr.Button("📤 지금 바로 올리기")
-                log = gr.Textbox(label="진행 기록", lines=6, interactive=False)
+                            ext_color = gr.Textbox(label="외장 색상", placeholder="예: 브루클린 그레이", min_width=120)
+                            int_color = gr.Textbox(label="시트 색상", placeholder="예: 블랙", min_width=120)
+                        photos = gr.File(label="출고 사진 (여러 장을 한 번에 끌어다 놓기)", file_count="multiple",
+                                         file_types=["image"], type="filepath", height=150)
+                        already = gr.Checkbox(label="번호판을 이미 가렸어요 (체크 안 하면 자동으로 가려요)", value=False)
+                        story = gr.Textbox(label="고객 이야기 (카톡으로 받은 글 그대로 붙여넣기)", lines=6,
+                                           placeholder="모르면 비워두세요. 차량 중심으로 씁니다.")
+                        make_btn = gr.Button("✍️ 글 만들기", variant="primary", elem_id="make-btn")
+                        gr.Markdown("1~2분 걸려요. 다 되면 오른쪽에 글이 나와요.", elem_classes="hint")
 
+                    # ② 오른쪽: 확인하고 고치기
+                    with gr.Column(scale=6, min_width=520, elem_classes="panel"):
+                        gr.Markdown("### ② 확인하고 고치기")
+                        gr.Markdown("고친 내용은 바로 저장돼요. 사진은 ⬆⬇로 옮기고 🗑로 빼요.", elem_classes="hint")
+                        plate_note = gr.Markdown()
+                        title = gr.Textbox(label="제목")
+                        tags = gr.Textbox(label="태그 (쉼표로 구분)")
+
+                        @gr.render(inputs=[folder, blocks], triggers=[ver.change])
+                        def draw(folder_v, blocks_v):
+                            if not blocks_v:
+                                gr.Markdown("왼쪽에 정보를 넣고 **✍️ 글 만들기**를 누르면 여기에 글이 나와요.  \n"
+                                            "예전 글은 [📂 지난 글]에서 불러올 수 있어요.", elem_classes="hint")
+                                return
+                            cfg = load_config()
+                            common_in = [folder, title, tags, blocks]
+                            common_out = [blocks, ver, unused_dd]
+                            for i, (k, text) in enumerate(blocks_v):
+                                with gr.Group(elem_classes="blk"):
+                                    if k == "image":
+                                        path = upload_image(cfg, Path(folder_v), text) if folder_v else None
+                                        label = {THUMB_FILE: "썸네일 (글 맨 처음 · 검색 대표 사진)", CARD_FILE: "스펙 카드"}.get(text, text)
+                                        if path:
+                                            gr.Image(str(path), label=f"📷 {label}", interactive=False, height=300,
+                                                     elem_classes="blk-img")
+                                        else:
+                                            gr.Markdown(f"⚠️ 사진 없음: {text}")
+                                    else:
+                                        tb = gr.Textbox(text, label=KIND_LABEL.get(k, "문단"), lines=1 if k != "paragraph" else 3,
+                                                        max_lines=30, elem_classes="quote" if k == "quote" else "")
+                                        tb.blur(lambda f, t, g, b, v, i=i: set_text(f, t, g, b, i, v), [*common_in, tb], blocks)
+                                    with gr.Row(elem_classes="tools"):
+                                        up = gr.Button("⬆", size="sm")
+                                        down = gr.Button("⬇", size="sm")
+                                        rm = gr.Button("🗑 빼기", size="sm", variant="stop")
+                                        add = gr.Button("＋ 아래에 문단", size="sm")
+                                        if k == "image" and text not in (THUMB_FILE, CARD_FILE):
+                                            thumb = gr.Button("🖼 썸네일로", size="sm")
+                                            swap = gr.UploadButton("🔁 사진 바꾸기", size="sm", file_types=["image"], type="filepath")
+                                            thumb.click(lambda f, b, i=i: use_for_thumb(f, b, i), [folder, blocks], ver)
+                                            swap.upload(lambda f, b, file, i=i: replace_photo(f, b, i, file), [folder, blocks, swap], ver)
+                                    up.click(lambda f, t, g, b, i=i: move_block(f, t, g, b, i, -1), common_in, common_out)
+                                    down.click(lambda f, t, g, b, i=i: move_block(f, t, g, b, i, 1), common_in, common_out)
+                                    rm.click(lambda f, t, g, b, i=i: remove_block(f, t, g, b, i), common_in, common_out)
+                                    add.click(lambda f, t, g, b, i=i: add_text_below(f, t, g, b, i), common_in, common_out)
+
+                        with gr.Row():
+                            unused_dd = gr.Dropdown(label="뺐던 사진 다시 넣기", scale=3)
+                            add_btn = gr.Button("＋ 넣기", scale=1)
+                        with gr.Row():
+                            queue_btn = gr.Button("⏰ 아침 8:30~9:30에 올리기", variant="primary", elem_id="queue-btn", scale=2)
+                            upload_btn = gr.Button("📤 지금 바로 올리기", scale=1)
+                        gr.Markdown("출고후기는 언제나 임시저장으로 올라가요. 네이버에서 확인하고 발행하세요.", elem_classes="hint")
+                        with gr.Accordion("더 보기 (다시 쓰기 · 썸네일 위치 · 진행 기록)", open=False):
+                            with gr.Row():
+                                redo_btn = gr.Button("🔄 AI가 처음부터 다시 쓰기")
+                                cards_btn = gr.Button("🖼 썸네일·스펙 카드만 넣기")
+                            thumb_pos = gr.Slider(0, 100, value=75, step=5, label="썸네일 사진 위치 (작게: 위쪽 · 크게: 아래쪽)")
+                            log = gr.Textbox(label="진행 기록", lines=6, interactive=False)
+
+                OPEN = [folder, plate_note, title, tags, blocks, ver, log, unused_dd]
                 trim.change(price_of, trim, price)
-                outs = [folder, gallery, plate_note, editor, preview, log]
-                make_btn.click(make_post, [kind, trim, ext_color, int_color, story, photos, plate_mode], outs)
-                redo_btn.click(rewrite, folder, outs)
-                cards_btn.click(add_cards_only, [folder, editor], [editor, preview])
-                editor.change(preview_md, [folder, editor], preview)
-                save_btn.click(save_draft, [folder, editor], preview).then(lambda: gr.Info("저장했습니다."))
-                gallery.select(on_select, folder, [selected, sel_note])
-                swap_btn.click(replace_photo, [folder, selected, new_photo], [gallery, new_photo])
-                thumb_btn.click(lambda f, n, t: use_for_card(f, n, t, "thumb_photo"), [folder, selected, editor], preview)
-                thumb_pos.release(move_thumb, [folder, thumb_pos, editor], preview)
-                upload_btn.click(upload_to_naver, [folder, editor], log)
-                queue_btn.click(queue_post, [folder, editor], None)
+                make_btn.click(make_post, [kind, trim, ext_color, int_color, story, photos, already], OPEN)
+                redo_btn.click(rewrite, folder, OPEN)
+                cards_btn.click(add_cards_only, [folder, title, tags, blocks], OPEN)
+                for box in (title, tags):
+                    box.blur(lambda f, t, g, b: store(f, t, g, b) if f else None, [folder, title, tags, blocks], None)
+                add_btn.click(add_photo, [folder, title, tags, blocks, unused_dd], [blocks, ver, unused_dd])
+                thumb_pos.release(move_thumb, [folder, thumb_pos], ver)
+                upload_btn.click(upload_to_naver, [folder, title, tags, blocks], log)
+                queue_btn.click(queue_post, [folder, title, tags, blocks], None)
 
-            with gr.Tab("총정리 글", id="guide"):
-                gr.Markdown("차종별 **색상·트림·가격 총정리** 글을 하루 한 편씩 씁니다. "
+            with gr.Tab("📚 총정리 글", id="guide"):
+                gr.Markdown("차종별 **색상·트림·가격 총정리** 글을 하루 한 편씩 써요. "
                             "출고후기 끝에 그 차종 총정리 글 링크가 자동으로 붙어요.")
-                gr.Markdown("#### ① 처음 한 번: Approach Book 에서 색상 사진 뽑기")
-                with gr.Row():
-                    g_pdf = gr.File(label="Approach Book PDF (전체 파일)", file_types=[".pdf"], type="filepath")
-                    g_extract_btn = gr.Button("📥 색상·시트·휠 사진 뽑기 (1~2분)", variant="primary")
-                g_log = gr.Textbox(label="뽑은 결과", lines=5, interactive=False)
-                gr.Markdown("#### ② 차종별 확인 — 사진과 이름이 맞는지 훑어보세요")
-                with gr.Row():
-                    g_series = gr.Dropdown(label="차종", filterable=True)
-                    g_thumb = gr.File(label="썸네일에 쓸 실제 사진 (선택 · 없으면 흰 배경 차 사진)", file_types=["image"], type="filepath")
-                    g_thumb_btn = gr.Button("이 사진을 썸네일로")
-                g_gallery = gr.Gallery(label="뽑은 사진", columns=7, height=320)
-                g_make_btn = gr.Button("✍️ 이 차종 총정리 글 지금 만들기 (글 쓰기 화면에서 확인 후 올리기)")
-                gr.Markdown("#### ③ 매일 자동으로 쓰기")
-                with gr.Row():
-                    g_time = gr.Textbox(value="08:30", label="시작 시각 (이 시각부터 1시간 안에 아무 때나 올라가요)")
-                    g_on = gr.Button("▶ 매일 자동 켜기", variant="primary")
-                    g_off = gr.Button("■ 끄기")
-                g_sched = gr.Markdown()
-                gr.Markdown("PC가 켜져 있고 로그인된 상태여야 해요. 꺼져 있던 날은 다음에 켤 때 한 편 씁니다. "
-                            "자동으로 올릴 때 크롬 창이 잠깐 열렸다 닫혀요.")
-                gr.Markdown("#### 진행 상황")
-                g_table = gr.Dataframe(headers=["순서", "차종", "이름", "상태", "글 주소"], interactive=False)
-                with gr.Row():
-                    g_url = gr.Textbox(label="임시저장 글을 직접 발행했다면 그 글 주소를 넣어주세요 (위에서 차종 선택)")
-                    g_url_btn = gr.Button("주소 저장")
-                    g_refresh = gr.Button("새로고침")
+                with gr.Row(equal_height=False):
+                    with gr.Column(scale=1, elem_classes="panel"):
+                        gr.Markdown("### ① 처음 한 번: 사진 뽑기")
+                        g_pdf = gr.File(label="Approach Book PDF (전체 파일)", file_types=[".pdf"], type="filepath", height=130)
+                        g_extract_btn = gr.Button("📥 색상·시트·휠 사진 뽑기 (1~2분)", variant="primary")
+                        g_log = gr.Textbox(label="뽑은 결과", lines=4, interactive=False)
+                    with gr.Column(scale=1, elem_classes="panel"):
+                        gr.Markdown("### ③ 매일 자동으로 쓰기")
+                        g_time = gr.Textbox(value="08:30", label="시작 시각 (이 시각부터 1시간 안에 올라가요)")
+                        with gr.Row():
+                            g_on = gr.Button("▶ 매일 자동 켜기", variant="primary")
+                            g_off = gr.Button("■ 끄기")
+                        g_sched = gr.Markdown()
+                        gr.Markdown("PC가 켜져 있어야 해요. 꺼져 있던 날은 다음에 켤 때 한 편 써요. "
+                                    "[⏰ 아침에 올리기]로 예약한 글도 이때 같이 올라가요.", elem_classes="hint")
+                with gr.Column(elem_classes="panel"):
+                    gr.Markdown("### ② 차종별 확인 — 사진과 이름이 맞는지 훑어보세요")
+                    with gr.Row():
+                        g_series = gr.Dropdown(label="차종", filterable=True, scale=2)
+                        g_make_btn = gr.Button("✍️ 이 차종 총정리 글 지금 만들기", scale=2)
+                    g_gallery = gr.Gallery(label="뽑은 사진", columns=7, height=300)
+                    with gr.Accordion("썸네일을 실제 사진으로 바꾸기 (선택)", open=False):
+                        with gr.Row():
+                            g_thumb = gr.File(label="번호판 가린 사진", file_types=["image"], type="filepath", height=120)
+                            g_thumb_btn = gr.Button("이 사진을 썸네일로")
+                with gr.Column(elem_classes="panel"):
+                    gr.Markdown("### 진행 상황")
+                    g_table = gr.Dataframe(headers=["순서", "차종", "이름", "상태", "글 주소"], interactive=False)
+                    with gr.Row():
+                        g_url = gr.Textbox(label="임시저장 글을 직접 발행했다면 그 글 주소 (위에서 차종 선택)", scale=3)
+                        g_url_btn = gr.Button("주소 저장", scale=1)
+                        g_refresh = gr.Button("새로고침", scale=1)
 
-            with gr.Tab("지난 글", id="history"):
-                table = gr.Dataframe(headers=["폴더", "제목", "상태"], interactive=False)
-                with gr.Row():
-                    pick = gr.Dropdown(label="불러올 글")
-                    load_btn = gr.Button("글 쓰기 화면으로 불러오기")
-                    refresh_btn = gr.Button("새로고침")
+                g_view = [g_table, g_series, g_gallery, g_sched]
+                g_extract_btn.click(guide_extract, g_pdf, [g_log, *g_view])
+                g_series.input(lambda s: guide.review_items(s), g_series, g_gallery)
+                g_thumb_btn.click(guide_thumb, [g_series, g_thumb], g_thumb)
+                g_make_btn.click(guide_make, g_series, [*OPEN, tabs])
+                g_on.click(lambda t: guide_schedule(True, t), g_time, g_sched)
+                g_off.click(lambda t: guide_schedule(False, t), g_time, g_sched)
+                g_url_btn.click(guide_url, [g_series, g_url], [g_table, g_url])
+                g_refresh.click(guide_view, g_series, g_view)
+
+            with gr.Tab("📂 지난 글", id="history"):
+                with gr.Column(elem_classes="panel"):
+                    with gr.Row():
+                        pick = gr.Dropdown(label="불러올 글", scale=3)
+                        load_btn = gr.Button("✏️ 불러와서 고치기", variant="primary", scale=1)
+                        refresh_btn = gr.Button("새로고침", scale=1)
+                    table = gr.Dataframe(headers=["폴더", "제목", "상태"], interactive=False)
                 refresh_btn.click(history, None, [table, pick])
-                load_btn.click(load_old, pick, [folder, gallery, plate_note, editor, preview, log, tabs])
+                load_btn.click(load_old, pick, [*OPEN, tabs])
 
-            with gr.Tab("설정", id="settings"):
-                gr.Markdown("#### AI")
+            with gr.Tab("⚙️ 설정", id="settings"):
+                with gr.Row(equal_height=False):
+                    with gr.Column(elem_classes="panel"):
+                        gr.Markdown("### AI")
+                        ai_name = gr.Radio(PROVIDERS, label="글을 쓸 AI")
+                        ai_model = gr.Textbox(label="모델 이름")
+                        key_note = gr.Markdown()
+                        api_key = gr.Textbox(label="API 키 (바꿀 때만 붙여넣기)", type="password")
+                        with gr.Row():
+                            save_ai_btn = gr.Button("AI 설정 저장", variant="primary")
+                            models_btn = gr.Button("쓸 수 있는 모델 보기")
+                        models_out = gr.Textbox(label="모델 목록", lines=4, interactive=False)
+                    with gr.Column(elem_classes="panel"):
+                        gr.Markdown("### 네이버")
+                        login_btn = gr.Button("네이버 로그인 (창이 열리면 로그인하세요)")
+                        login_out = gr.Textbox(label="로그인 결과", lines=2, interactive=False)
+                        publish = gr.Radio(["임시저장만", "바로 발행"], label="올리기 방식 (출고후기는 언제나 임시저장)")
+                        gr.Markdown("### 자료")
+                        price_file = gr.File(label="새 가격표.txt", file_types=[".txt"], type="filepath", height=110)
+                        price_btn = gr.Button("가격표 바꾸기")
+                        refs_btn = gr.Button("추천 레퍼런스 다시 받기 (1~2분)")
+                        refs_out = gr.Textbox(label="레퍼런스 결과", lines=3, interactive=False)
+                with gr.Column(elem_classes="panel"):
+                    gr.Markdown("### 글 끝 상담 안내 (모든 글 마지막에 그대로 붙어요)")
+                    closing = gr.Textbox(lines=10, show_label=False)
+                    closing_btn = gr.Button("상담 안내 저장")
                 with gr.Row():
-                    ai_name = gr.Radio(PROVIDERS, label="글을 쓸 AI")
-                    ai_model = gr.Textbox(label="모델 이름")
-                key_note = gr.Markdown()
-                api_key = gr.Textbox(label="API 키 (바꿀 때만 붙여넣기)", type="password")
-                with gr.Row():
-                    save_ai_btn = gr.Button("AI 설정 저장", variant="primary")
-                    models_btn = gr.Button("쓸 수 있는 모델 보기")
-                models_out = gr.Textbox(label="모델 목록", lines=6, interactive=False)
-
-                gr.Markdown("#### 네이버")
-                with gr.Row():
-                    login_btn = gr.Button("네이버 로그인 (창이 열리면 로그인하세요)")
-                    publish = gr.Radio(["임시저장만", "바로 발행"], label="올리기 방식")
-                login_out = gr.Textbox(label="로그인 결과", lines=2, interactive=False)
-
-                gr.Markdown("#### 글 끝 상담 안내 (모든 글 마지막에 그대로 붙어요)")
-                closing = gr.Textbox(lines=10, show_label=False)
-                closing_btn = gr.Button("상담 안내 저장")
-
-                gr.Markdown("#### 자료")
-                with gr.Row():
-                    price_file = gr.File(label="새 가격표.txt 올리기", file_types=[".txt"], type="filepath")
-                    price_btn = gr.Button("가격표 바꾸기")
-                refs_btn = gr.Button("추천 레퍼런스 다시 받기 (1~2분)")
-                refs_out = gr.Textbox(label="레퍼런스 결과", lines=4, interactive=False)
-
-                gr.Markdown("---")
-                quit_btn = gr.Button("프로그램 종료", variant="stop")
-                quit_out = gr.Markdown()
+                    quit_btn = gr.Button("프로그램 종료", variant="stop")
+                    quit_out = gr.Markdown()
 
                 ai_name.input(provider_changed, ai_name, [ai_model, key_note])
                 save_ai_btn.click(save_ai, [ai_name, ai_model, api_key], [key_note, api_key])
@@ -575,20 +661,12 @@ def build() -> gr.Blocks:
                 refs_btn.click(update_refs, None, refs_out)
                 quit_btn.click(quit_app, None, quit_out)
 
-                g_view = [g_table, g_series, g_gallery, g_sched]
-                g_extract_btn.click(guide_extract, g_pdf, [g_log, *g_view])
-                g_series.input(lambda s: guide.review_items(s), g_series, g_gallery)
-                g_thumb_btn.click(guide_thumb, [g_series, g_thumb], g_thumb)
-                g_make_btn.click(guide_make, g_series, [folder, gallery, plate_note, editor, preview, log, tabs])
-                g_on.click(lambda t: guide_schedule(True, t), g_time, g_sched)
-                g_off.click(lambda t: guide_schedule(False, t), g_time, g_sched)
-                g_url_btn.click(guide_url, [g_series, g_url], [g_table, g_url])
-                g_refresh.click(guide_view, g_series, g_view)
-
         demo.load(settings_values, None, [ai_name, ai_model, key_note, publish, closing])
         demo.load(guide_view, None, g_view)
         demo.load(history, None, [table, pick])
+        demo.load(lambda: time.time(), None, ver)  # 처음 화면에 안내 문구 그리기
     return demo
+
 
 
 def free_port(start: int = 7860) -> int:
@@ -618,4 +696,5 @@ if __name__ == "__main__":
     if "--no-window" not in sys.argv:
         threading.Thread(target=open_window, args=(url,), daemon=True).start()
     build().launch(server_name="127.0.0.1", server_port=port, inbrowser=False, quiet=True,
-                   allowed_paths=[str(POSTS_DIR), str(guide.ASSET_DIR), str(guide.THUMB_DIR)], footer_links=[])
+                   allowed_paths=[str(POSTS_DIR), str(guide.ASSET_DIR), str(guide.THUMB_DIR)], footer_links=[],
+                   theme=THEME, css=CSS)
