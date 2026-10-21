@@ -22,6 +22,8 @@ from common import (CARD_DIR, DRAFT_FILE, POSTED_FILE, POSTS_DIR, THUMB_FILE, TO
 from generate import DATA_DIR, GUIDE_DIR, KEYWORD_FILE, PRICE_FILE, matching_series, price_sections, read_text
 
 ASSET_DIR = DATA_DIR / "차종사진"          # PDF 에서 뽑은 사진 (딜러 자료라 저장소에 올리지 않음)
+BOOK_FILE = DATA_DIR / "Approach_Book.pdf"  # 한 번 올린 PDF 를 보관해 두고 필요할 때 프로그램이 다시 읽는다
+EXTRACT_VERSION = 2  # 뽑는 방식이 바뀌면 올림 → 보관해 둔 PDF 로 저절로 다시 뽑는다 (2: 제원표 추가)
 THUMB_DIR = DATA_DIR / "총정리_썸네일"     # 차종별 썸네일로 쓸 실제 사진 (있으면 PDF 사진 대신)
 ORDER_FILE = DATA_DIR / "총정리_순서.txt"
 RECORD_FILE = DATA_DIR / "총정리_기록.json"
@@ -268,6 +270,10 @@ def extract(pdf: str | Path, log=print) -> dict[str, int]:
     for series, d in data.items():
         d["specs"] = specs.get(series, [])
         (ASSET_DIR / safe(series) / "data.json").write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    ASSET_DIR.mkdir(parents=True, exist_ok=True)
+    (ASSET_DIR / "_version.txt").write_text(str(EXTRACT_VERSION), encoding="utf-8")
+    if Path(pdf).resolve() != BOOK_FILE.resolve():  # 다음부터는 안 올려도 되게 보관
+        shutil.copy(pdf, BOOK_FILE)
     missing = [n for n in names if n not in data]
     log(f"[완료] {len(data)}개 차종 사진을 뽑았습니다." + (f"\n  색상 페이지를 못 찾은 차종: {', '.join(missing)}" if missing else ""))
     return {s: sum(len(g["exterior"]) for g in d["groups"]) for s, d in data.items()}
@@ -614,9 +620,20 @@ def queued() -> list[Path]:
                   if (f.parent / DRAFT_FILE).exists() and not (f.parent / POSTED_FILE).exists()) if POSTS_DIR.exists() else []
 
 
+def refresh_if_needed(log=print) -> bool:
+    """프로그램이 바뀌어 다시 뽑아야 하면, 보관해 둔 PDF 로 저절로 다시 뽑는다."""
+    stamp = ASSET_DIR / "_version.txt"
+    if BOOK_FILE.exists() and (not stamp.exists() or stamp.read_text().strip() != str(EXTRACT_VERSION)):
+        log("[총정리] 보관해 둔 Approach Book 으로 사진·제원표를 다시 뽑습니다.")
+        extract(BOOK_FILE, log)
+        return True
+    return False
+
+
 def run_daily(cfg: dict, wait: bool = False, log=print) -> None:
     """매일 아침 한 번: 예약해 둔 글(출고후기 등)을 올리고, 오늘 아직 안 썼으면 다음 차종 총정리 한 편을 쓰고 올린다."""
     import post
+    refresh_if_needed(log)
     today = f"{date.today()}"
     guide_done = any(r.get("date") == today for r in load_records().values())
     series = None if guide_done else next_series()

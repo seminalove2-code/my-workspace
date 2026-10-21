@@ -302,9 +302,18 @@ def guide_view(series=None):
 
 def guide_extract(pdf):
     if not pdf:
-        raise gr.Error("Approach Book PDF 파일을 올려주세요.")
+        if not guide.BOOK_FILE.exists():
+            raise gr.Error("Approach Book PDF 파일을 올려주세요.")
+        pdf = guide.BOOK_FILE  # 예전에 올린 PDF 로 다시 뽑기
     _, log = run_captured(guide.extract, pdf)
     return (log, *guide_view())
+
+
+def book_note() -> str:
+    if guide.BOOK_FILE.exists():
+        t = datetime.fromtimestamp(guide.BOOK_FILE.stat().st_mtime)
+        return f"✅ 보관 중인 Approach Book: {t:%Y-%m-%d} 에 올린 파일. **새 달 Approach Book 이 나왔을 때만** 다시 올리세요."
+    return "아직 PDF가 없어요. 한 번만 올리면 프로그램이 보관해 두고 계속 씁니다."
 
 
 def guide_make(series):
@@ -591,6 +600,7 @@ def build() -> gr.Blocks:
                 with gr.Row(equal_height=False):
                     with gr.Column(scale=1, elem_classes="panel"):
                         gr.Markdown("### ① 처음 한 번: 사진 뽑기")
+                        g_book = gr.Markdown(book_note)
                         g_pdf = gr.File(label="Approach Book PDF (전체 파일)", file_types=[".pdf"], type="filepath", height=130)
                         g_extract_btn = gr.Button("📥 색상·시트·휠 사진 뽑기 (1~2분)", variant="primary")
                         g_log = gr.Textbox(label="뽑은 결과", lines=4, interactive=False)
@@ -626,7 +636,7 @@ def build() -> gr.Blocks:
                         g_cat_btn = gr.Button("카테고리 주소 저장", scale=1)
 
                 g_view = [g_table, g_series, g_gallery, g_sched]
-                g_extract_btn.click(guide_extract, g_pdf, [g_log, *g_view])
+                g_extract_btn.click(guide_extract, g_pdf, [g_log, *g_view]).then(book_note, None, g_book)
                 g_series.input(lambda s: guide.review_items(s), g_series, g_gallery)
                 g_thumb_btn.click(guide_thumb, [g_series, g_thumb], g_thumb)
                 g_make_btn.click(guide_make, g_series, [*OPEN, tabs])
@@ -716,6 +726,7 @@ def open_window(url: str) -> None:
 
 if __name__ == "__main__":
     load_dotenv(ROOT / ".env")
+    threading.Thread(target=guide.refresh_if_needed, daemon=True).start()
     port = free_port()
     url = f"http://127.0.0.1:{port}"
     if "--no-window" not in sys.argv:
