@@ -45,22 +45,20 @@ h1.long{font-size:58px}
 
 THUMB_CSS = """
 *{box-sizing:border-box;margin:0;padding:0}
-body{width:1080px;height:1080px;overflow:hidden;font-family:'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
- color:#fff;position:relative;background:#0b1d3a}
-.bg{position:absolute;inset:0;background:#33455f center/cover no-repeat}
-.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,18,40,.92) 0%,rgba(6,18,40,.62) 34%,
- rgba(6,18,40,0) 58%,rgba(6,18,40,0) 78%,rgba(6,18,40,.7) 100%)}
-.stripe{display:flex;gap:6px}.stripe i{width:44px;height:8px;border-radius:2px}
-.s1{background:#7fb6ff}.s2{background:#1c4bb4}.s3{background:#e4242e}
-.box{position:absolute;left:72px;top:70px;right:72px}
-.chip{display:inline-block;margin-top:26px;padding:8px 18px;border:1.5px solid rgba(255,255,255,.55);border-radius:999px;font-size:24px;font-weight:500}
-h1{font-size:112px;font-weight:900;line-height:1.02;letter-spacing:-2px;margin-top:22px}
-h1.long{font-size:84px}
-h2{font-size:84px;font-weight:900;color:#7fb6ff;line-height:1.1;letter-spacing:-1px}
-.bottom{position:absolute;left:72px;right:72px;bottom:58px;display:flex;justify-content:space-between;align-items:flex-end;font-size:28px;font-weight:500}
-.bottom b{font-size:30px}
+body{width:1080px;height:1080px;overflow:hidden;position:relative;background:#222;
+ font-family:'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif}
+.bg{position:absolute;inset:0;background:#33455f no-repeat;background-size:cover}
+.t{position:absolute;left:0;right:0;text-align:center;font-weight:900;font-style:italic;transform:skewX(-6deg);
+ paint-order:stroke fill;letter-spacing:-2px;line-height:1.05;white-space:nowrap;
+ filter:drop-shadow(0 6px 8px rgba(0,0,0,.45))}
+.top1{top:40px;font-size:96px;color:#1c69d4;-webkit-text-stroke:16px #fff}
+.top1 span{font-size:64px}
+.top2{top:150px;font-size:112px;color:#fff;-webkit-text-stroke:18px #0b1d3a}
+.bot1{bottom:118px;color:#fff;-webkit-text-stroke:18px #0b1d3a}
+.bot2{bottom:40px;font-size:62px;color:#fff;-webkit-text-stroke:14px #1c69d4}
 """
-KIND_LABEL = {"출고후기": "출고 후기", "차량정보": "실차 리뷰", "프로모션": "프로모션", "상담견적": "구매 상담"}
+# 아래 큰 줄 아래에 붙는 작은 줄 (출고후기는 색상, 나머지는 글 종류)
+KIND_LABEL = {"차량정보": "실차 리뷰 · 가격 정리", "프로모션": "공식 금융 프로그램", "상담견적": "구매 상담"}
 
 
 def _e(text: str) -> str:
@@ -81,7 +79,8 @@ def build_html(card: dict, photo: Path | None, cfg: dict) -> str:
     tag = cfg.get("card_tagline", "좋은 차는 기본, 좋은 담당자는 선택.<br>BMW는 최현정입니다 🩶")
     model = _e(card.get("model"))
     sub = " · ".join(x for x in (_e(card.get("year")), _e(card.get("colors"))) if x)
-    photo_css = f"background-image:url('{photo.resolve().as_uri()}')" if photo else ""
+    photo_css = (f"background-image:url('{photo.resolve().as_uri()}');background-position:center {card.get('photo_pos', 65)}%"
+                 if photo else "")
     price = (f'<div class="price"><span>판매가격</span><div><b>{_e(card["price"])}</b><small>만원</small></div></div>'
              if str(card.get("price") or "").strip() else "")
     size = f'<div class="size">크기 {_e(card["size"])}</div>' if str(card.get("size") or "").strip() else ""
@@ -100,24 +99,37 @@ def build_html(card: dict, photo: Path | None, cfg: dict) -> str:
 
 
 def build_thumb_html(card: dict, photo: Path | None, kind: str, cfg: dict) -> str:
-    model = _e(card.get("model"))
-    label = _e(card.get("thumb_label") or KIND_LABEL.get(kind, ""))
-    who = _e(cfg.get("thumb_who", "용산 BMW · 최현정 대리"))
-    bottom_left = _e(card.get("colors")).replace(" / ", " · ")
-    photo_css = f"background-image:url('{photo.resolve().as_uri()}')" if photo else ""
+    """출고후기 스타일: 위에 'BMW 한독모터스 / 용산 최현정대리', 아래에 차량과 색상 (사진은 밝게 그대로)."""
+    big = _e(card.get("thumb_title") or card.get("model"))
+    if kind == "출고후기" or not KIND_LABEL.get(kind):
+        small = _e(card.get("colors"))
+        small = f"({small})" if small else ""
+    else:
+        small = _e(KIND_LABEL[kind])
+    size = 92 if len(big) <= 14 else max(56, int(92 * 14 / len(big)))
+    pos = card.get("thumb_pos", 75)
+    photo_css = f"background-image:url('{photo.resolve().as_uri()}');background-position:center {pos}%" if photo else ""
+    top1 = cfg.get("thumb_top1", "BMW <span>한독모터스</span>")
+    top2 = _e(cfg.get("thumb_top2", "용산 최현정대리"))
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
-<style>{THUMB_CSS}</style></head><body><div class="bg" style="{photo_css}"></div><div class="shade"></div>
-<div class="box"><div class="stripe"><i class="s1"></i><i class="s2"></i><i class="s3"></i></div>
-<div class="chip">{who}</div><h1 class="{'long' if len(model) > 14 else ''}">{model}</h1><h2>{label}</h2></div>
-<div class="bottom"><span>{bottom_left}</span><b>{_e(card.get("year"))}</b></div></body></html>"""
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@900&display=swap" rel="stylesheet">
+<style>{THUMB_CSS}</style></head><body><div class="bg" style="{photo_css}"></div>
+<div class="t top1">{top1}</div><div class="t top2">{top2}</div>
+<div class="t bot1" style="font-size:{size}px">{big}</div><div class="t bot2">{small}</div></body></html>"""
+
+
+def set_thumb_pos(folder: Path, pos: int) -> None:
+    card = load_card_data(folder)
+    card["thumb_pos"] = int(pos)
+    (folder / CARD_DIR / "card.json").write_text(json.dumps(card, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
 def save_card_data(folder: Path, card: dict) -> None:
     d = folder / CARD_DIR
     d.mkdir(exist_ok=True)
     old = load_card_data(folder)
-    card = {**card, "photo": old.get("photo", ""), "thumb_photo": old.get("thumb_photo", "")}
+    card = {**card, "photo": old.get("photo", ""), "thumb_photo": old.get("thumb_photo", ""),
+            "thumb_pos": old.get("thumb_pos", 75)}
     (d / "card.json").write_text(json.dumps(card, ensure_ascii=False, indent=1), encoding="utf-8")
 
 

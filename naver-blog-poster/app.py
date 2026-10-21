@@ -206,6 +206,17 @@ def use_for_card(folder, selected, text, which="photo"):
     return preview_md(str(folder), text)
 
 
+def move_thumb(folder, pos, text):
+    if not folder:
+        raise gr.Error("먼저 글을 만들어 주세요.")
+    folder = Path(folder)
+    if not card.load_card_data(folder):
+        raise gr.Error("이 글에는 썸네일이 없습니다. (출고후기·차량정보 글에만 만들어요)")
+    card.set_thumb_pos(folder, pos)
+    card.render(folder)
+    return preview_md(str(folder), text)
+
+
 def on_select(evt: gr.SelectData, folder):
     items = gallery_items(Path(folder), load_config()) if folder else []
     name = items[evt.index][1] if 0 <= evt.index < len(items) else ""
@@ -364,6 +375,7 @@ def build() -> gr.Blocks:
                     swap_btn = gr.Button("선택한 사진 바꾸기")
                     thumb_btn = gr.Button("🖼️ 이 사진을 썸네일에 쓰기")
                     card_btn = gr.Button("🪪 이 사진을 스펙 카드에 쓰기")
+                thumb_pos = gr.Slider(0, 100, value=75, step=5, label="썸네일 사진 위치 (작게: 위쪽 보이기 · 크게: 아래쪽 보이기)")
                 with gr.Row():
                     editor = gr.Textbox(label="글 (여기서 바로 고칠 수 있어요)", lines=28)
                     preview = gr.Markdown(label="보이는 모양", height=640)
@@ -383,6 +395,7 @@ def build() -> gr.Blocks:
                 swap_btn.click(replace_photo, [folder, selected, new_photo], [gallery, new_photo])
                 card_btn.click(use_for_card, [folder, selected, editor], preview)
                 thumb_btn.click(lambda f, n, t: use_for_card(f, n, t, "thumb_photo"), [folder, selected, editor], preview)
+                thumb_pos.release(move_thumb, [folder, thumb_pos, editor], preview)
                 upload_btn.click(upload_to_naver, [folder, editor], log)
 
             with gr.Tab("지난 글", id="history"):
