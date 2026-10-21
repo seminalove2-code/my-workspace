@@ -15,7 +15,7 @@ from pathlib import Path
 from playwright.sync_api import Error as PWError, FrameLocator, Page, TimeoutError as PWTimeout, sync_playwright
 
 from browser import open_browser
-from common import (DRAFT_FILE, POSTED_FILE, ROOT, TOPIC_FILE, Draft, load_config, post_folders,
+from common import (CARD_DIR, DRAFT_FILE, POSTED_FILE, ROOT, TOPIC_FILE, Draft, load_config, post_folders,
                     post_kind, read_draft, resolve_folder, upload_image)
 
 # 네이버 에디터 화면이 바뀌면 여기만 고치면 된다.
@@ -134,34 +134,63 @@ def table_html(rows: list[list[str]]) -> str:
     return "<table><tbody>" + "".join(out) + "</tbody></table><p><br></p>"
 
 
-def insert_table(page: Page, ed: FrameLocator, text: str) -> None:
-    """네이버 표로 넣는다. 에디터에 HTML 표를 붙여넣기(paste)하는 방식.
-    표가 안 생기면 '항목 : 값' 글로 대신 넣어서 글은 끝까지 올라가게 한다."""
+TABLE_CSS = """*{box-sizing:border-box;margin:0}body{width:1080px;background:#fff;padding:28px 30px;
+font-family:'Noto Sans KR','Malgun Gothic',sans-serif;color:#14213d}
+table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:1px solid #cfd6e0;padding:13px 6px;text-align:center;font-size:23px}
+th{background:#e6eefb;color:#16418f;font-weight:700}tr th:first-child{background:#f3f5f8;color:#14213d;width:230px;font-size:21px}"""
+
+
+def table_image(folder: Path, rows: list[list[str]], n: int) -> Path:
+    """표를 그림으로 (네이버 표로 못 넣을 때 대신)"""
+    import card
+    out = folder / CARD_DIR / f"table_{n}.png"
+    out.parent.mkdir(exist_ok=True)
+    page_html = (f'<!doctype html><html lang="ko"><head><meta charset="utf-8">'
+                 f'<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">'
+                 f'<style>{TABLE_CSS}</style></head><body>{table_html(rows)}</body></html>')
+    card._shot([(page_html, out, 200)])
+    return out
+
+
+def _paste(page: Page, html_text: str, plain: str) -> None:
+    """진짜 클립보드에 표를 넣고 Ctrl+V (사람이 엑셀 표를 붙여넣는 것과 같은 방식)"""
+    try:
+        page.context.grant_permissions(["clipboard-read", "clipboard-write"], origin="https://blog.naver.com")
+    except PWError:
+        pass
+    frame = page.frame(name="mainFrame") or page.main_frame
+    frame.evaluate("""async ([h, t]) => {
+        await navigator.clipboard.write([new ClipboardItem({
+            'text/html': new Blob([h], {type: 'text/html'}), 'text/plain': new Blob([t], {type: 'text/plain'})})]);
+    }""", [html_text, plain])
+    page.keyboard.press("Control+V")
+
+
+def insert_table(page: Page, ed: FrameLocator, text: str, folder: Path, n: int = 1) -> None:
+    """네이버 표로 넣는다 (클립보드 붙여넣기). 표가 안 생기면 같은 표를 그림으로 만들어 넣는다."""
     rows = table_rows(text)
     if not rows:
         return
     before = ed.locator(SEL["table_component"]).count()
-    plain = "\n".join("\t".join(r) for r in rows)
-    ed.locator(SEL["body_text"]).last.evaluate(
-        """(el, [h, t]) => {
-            const doc = el.ownerDocument, target = doc.activeElement || el;
-            const dt = new DataTransfer();
-            dt.setData('text/html', h); dt.setData('text/plain', t);
-            target.dispatchEvent(new ClipboardEvent('paste', {clipboardData: dt, bubbles: true, cancelable: true}));
-        }""", [table_html(rows), plain])
-    deadline = time.time() + 6
-    while ed.locator(SEL["table_component"]).count() <= before and time.time() < deadline:
-        time.sleep(0.3)
+    wrap = ed.locator(".se-components-wrap").first
+    text_before = len(wrap.inner_text())
+    try:
+        _paste(page, table_html(rows), "\n".join("\t".join(r) for r in rows))
+        deadline = time.time() + 6
+        while ed.locator(SEL["table_component"]).count() <= before and time.time() < deadline:
+            time.sleep(0.3)
+    except PWError as e:
+        print(f"  [주의] 표 붙여넣기 실패: {e}")
     if ed.locator(SEL["table_component"]).count() > before:
         pause(0.8, 1.2)
         move_caret_below_last(page, ed)
         return
-    print("  [주의] 네이버 표를 넣지 못해 글로 대신 넣었습니다.")
-    head, *body = rows
-    for r in body:
-        type_lines(page, f"{r[0]} : " + " / ".join(f"{m} {v}" for m, v in zip(head[1:], r[1:])) if len(set(r[1:])) > 1
-                   else f"{r[0]} : {r[1]}")
-        page.keyboard.press("Enter")
+    # 표가 안 생겼다: 붙여넣기로 글자만 들어갔으면 되돌리고 그림으로
+    if len(wrap.inner_text()) > text_before:
+        page.keyboard.press("Control+Z")
+        pause()
+    print("  [안내] 네이버 표가 안 만들어져서 표를 그림으로 넣었습니다.")
+    insert_image(page, ed, table_image(folder, rows, n))
 
 
 def insert_heading(page: Page, text: str) -> None:
@@ -188,7 +217,7 @@ def fill_editor(page: Page, ed: FrameLocator, cfg: dict, folder: Path, draft: Dr
             insert_quote(page, ed, block.text)
             continue
         if block.kind == "table":
-            insert_table(page, ed, block.text)
+            insert_table(page, ed, block.text, folder, i)
             continue
         if block.kind == "heading":
             insert_heading(page, block.text)
