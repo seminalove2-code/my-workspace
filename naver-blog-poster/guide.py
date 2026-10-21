@@ -26,6 +26,7 @@ THUMB_DIR = DATA_DIR / "총정리_썸네일"     # 차종별 썸네일로 쓸 �
 ORDER_FILE = DATA_DIR / "총정리_순서.txt"
 RECORD_FILE = DATA_DIR / "총정리_기록.json"
 KIND = "총정리"
+QUEUE_FILE = "아침에올리기.txt"  # 이 파일이 있는 글 폴더는 다음 날 아침 자동 실행 때 올린다
 PRICE_CARD, COLOR_CARD, INTERIOR_CARD = "가격표.png", "색상표.png", "시트휠.png"
 
 FONT = '<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">'
@@ -481,19 +482,30 @@ def link_for(memo: str) -> str:
     return ""
 
 
+def queued() -> list[Path]:
+    """[글 쓰기]에서 '아침에 올리기'로 예약해 둔, 아직 안 올린 글들"""
+    return sorted(f for f in POSTS_DIR.glob("*/" + QUEUE_FILE)
+                  if (f.parent / DRAFT_FILE).exists() and not (f.parent / POSTED_FILE).exists()) if POSTS_DIR.exists() else []
+
+
 def run_daily(cfg: dict, wait: bool = False, log=print) -> None:
-    """오늘 아직 안 썼으면 다음 차종 한 편을 쓰고 올린다."""
+    """매일 아침 한 번: 예약해 둔 글(출고후기 등)을 올리고, 오늘 아직 안 썼으면 다음 차종 총정리 한 편을 쓰고 올린다."""
     import post
     today = f"{date.today()}"
-    if any(r.get("date") == today for r in load_records().values()):
-        log("[건너뜀] 오늘은 이미 총정리 글을 올렸습니다.")
-        return
-    series = next_series()
-    if not series:
-        log("[끝] 사진이 있는 모든 차종의 총정리 글을 다 썼습니다.")
+    guide_done = any(r.get("date") == today for r in load_records().values())
+    series = None if guide_done else next_series()
+    waiting = [f.parent for f in queued()]
+    if guide_done:
+        log("[총정리] 오늘은 이미 올렸습니다.")
+    elif not series:
+        log("[총정리] 사진이 있는 모든 차종을 다 썼습니다.")
+    if not series and not waiting:
         return
     if wait:  # 매일 같은 시각에 올라가지 않게 0~60분 쉬었다가 시작 (08:30 에 켜지면 9:30 전에 끝)
         time.sleep(random.randint(0, 60 * 60))
-    folder = make(cfg, series, log)
-    if folder and (folder / DRAFT_FILE).exists():
-        post.run_posts(cfg, [folder])
+    folders = list(waiting)
+    if series and (folder := make(cfg, series, log)) and (folder / DRAFT_FILE).exists():
+        folders.append(folder)
+    if folders:
+        log(f"[올리기] {', '.join(f.name for f in folders)}")
+        post.run_posts(cfg, folders)

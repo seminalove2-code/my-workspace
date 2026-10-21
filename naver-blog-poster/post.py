@@ -172,6 +172,8 @@ def post_one(page: Page, cfg: dict, folder: Path, test: bool) -> None:
     if kind == "총정리":  # 총정리 글은 처음 몇 편만 임시저장하고 그 뒤로는 바로 발행 (guide.publish_now)
         import guide
         cfg = {**cfg, "publish": guide.publish_now(cfg)}
+    elif kind == "출고후기":  # 출고후기는 최현정 대리가 확인하고 직접 발행하도록 언제나 임시저장
+        cfg = {**cfg, "publish": False}
     print(f"[입력 중] {folder.name}: {draft.title}")
 
     try:

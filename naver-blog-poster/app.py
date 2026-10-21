@@ -122,6 +122,8 @@ def status_of(folder: Path) -> str:
     if (folder / POSTED_FILE).exists():
         first = (folder / POSTED_FILE).read_text(encoding="utf-8").splitlines()[1:2]
         return "발행됨" if first and first[0].startswith("http") else "임시저장됨"
+    if (folder / guide.QUEUE_FILE).exists():
+        return "아침에 올리기 예약"
     return "초안" if (folder / DRAFT_FILE).exists() else "작성 전"
 
 
@@ -248,7 +250,8 @@ def upload_to_naver(folder, text):
     save_draft(str(folder), text)
     read_draft(folder / DRAFT_FILE)  # 제목 없는 글이면 여기서 알려준다
     cfg = load_config()
-    published = guide.publish_now(cfg) if generate.post_kind(folder) == guide.KIND else cfg.get("publish")
+    kind = generate.post_kind(folder)
+    published = guide.publish_now(cfg) if kind == guide.KIND else False if kind == "출고후기" else cfg.get("publish")
     done, log = run_captured(post.run_posts, cfg, [folder])
     if done:
         gr.Info("발행했습니다." if published else "임시저장했습니다. 네이버 블로그에서 확인 후 발행하세요.")
@@ -317,6 +320,16 @@ def guide_schedule(on, at):
     msg = task_schedule.enable(at.strip()) if on else task_schedule.disable()
     gr.Info(msg)
     return task_schedule.status()
+
+
+def queue_post(folder, text):
+    if not folder:
+        raise gr.Error("먼저 글을 만들어 주세요.")
+    folder = Path(folder)
+    save_draft(str(folder), text)
+    read_draft(folder / DRAFT_FILE)
+    (folder / guide.QUEUE_FILE).write_text(f"{datetime.now():%Y-%m-%d %H:%M} 예약\n", encoding="utf-8")
+    gr.Info("다음 아침 8:30~9:30 사이에 자동으로 올립니다. ([총정리 글] 탭에서 매일 자동이 켜져 있어야 해요)")
 
 
 # ── 지난 글 탭 ──
@@ -462,7 +475,8 @@ def build() -> gr.Blocks:
                     save_btn = gr.Button("💾 고친 내용 저장")
                     redo_btn = gr.Button("🔄 다시 쓰기")
                     cards_btn = gr.Button("🖼️ 썸네일·스펙 카드만 추가")
-                    upload_btn = gr.Button("📤 네이버에 올리기", variant="primary")
+                    queue_btn = gr.Button("⏰ 아침 8:30~9:30에 올리기", variant="primary")
+                    upload_btn = gr.Button("📤 지금 바로 올리기")
                 log = gr.Textbox(label="진행 기록", lines=6, interactive=False)
 
                 trim.change(price_of, trim, price)
@@ -477,6 +491,7 @@ def build() -> gr.Blocks:
                 thumb_btn.click(lambda f, n, t: use_for_card(f, n, t, "thumb_photo"), [folder, selected, editor], preview)
                 thumb_pos.release(move_thumb, [folder, thumb_pos, editor], preview)
                 upload_btn.click(upload_to_naver, [folder, editor], log)
+                queue_btn.click(queue_post, [folder, editor], None)
 
             with gr.Tab("총정리 글", id="guide"):
                 gr.Markdown("차종별 **색상·트림·가격 총정리** 글을 하루 한 편씩 씁니다. "
