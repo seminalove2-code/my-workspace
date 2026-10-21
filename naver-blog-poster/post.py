@@ -140,6 +140,9 @@ def fill_editor(page: Page, ed: FrameLocator, cfg: dict, folder: Path, draft: Dr
             page.keyboard.press("Enter")
             page.keyboard.press("Enter")
         pause()
+    # 글 맨 끝에 태그 한 줄 (#태그1 #태그2 ...). 임시저장할 때도 태그가 글에 남는다.
+    if draft.tags and cfg.get("body_tags", True):
+        type_lines(page, " ".join(f"#{t}" for t in draft.tags[:10]))
 
 
 def open_publish_layer(ed: FrameLocator, category: str, tags: list[str]) -> None:
