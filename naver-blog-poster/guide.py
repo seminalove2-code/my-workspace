@@ -487,13 +487,20 @@ def next_series() -> str | None:
     return next((s for s in order() if s not in rec and assets(s)), None)
 
 
-def link_for(memo: str) -> str:
-    """출고후기 끝에 붙일 총정리 글 안내. 발행된 총정리 글이 없으면 빈 문자열."""
+def link_for(memo: str, cfg: dict | None = None) -> str:
+    """출고후기 끝(상담 안내 앞)에 붙일 안내: 전 트림·색상을 보고 고르시라는 말 + 그 차종 총정리 글 링크.
+    총정리 글이 아직 발행 전이면 빈 문자열. config 의 guide_category_url 이 있으면 전 차종 모아보기 링크도 붙인다."""
     rec = load_records()
     for s in matching_series(memo):
         url = str(rec.get(s, {}).get("url", ""))
         if url.startswith("http"):
-            return f"🔎 {kname(s)} 색상·트림·가격 한눈에 보기 →\n{url}"
+            name = kname(s)
+            lines = [f"🔎 {name} 고민 중이시라면, 트림·색상을 전부 보고 고르시는 게 제일 후회 없어요!",
+                     f"{name} 색상·트림·가격 한눈에 보기 →", url]
+            more = str((cfg or {}).get("guide_category_url") or "").strip()
+            if more.startswith("http"):
+                lines += ["", "다른 BMW 차종도 전부 정리해 뒀어요 →", more]
+            return "\n".join(lines)
     return ""
 
 

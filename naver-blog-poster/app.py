@@ -351,6 +351,13 @@ def guide_schedule(on, at):
     return task_schedule.status()
 
 
+def save_category_url(url):
+    if url.strip() and not url.strip().startswith("http"):
+        raise gr.Error("블로그에서 BMW차량정보 카테고리를 누른 뒤 주소창의 주소(https://...)를 붙여넣으세요.")
+    settings_io.set_top("guide_category_url", url.strip())
+    gr.Info("저장했어요. 다음 출고후기부터 전 차종 모아보기 링크가 붙어요." if url.strip() else "카테고리 링크를 뺐어요.")
+
+
 # ── 지난 글 탭 ──
 
 def history():
@@ -600,6 +607,10 @@ def build() -> gr.Blocks:
                         g_url = gr.Textbox(label="임시저장 글을 직접 발행했다면 그 글 주소 (위에서 차종 선택)", scale=3)
                         g_url_btn = gr.Button("주소 저장", scale=1)
                         g_refresh = gr.Button("새로고침", scale=1)
+                    with gr.Row():
+                        g_cat = gr.Textbox(label="블로그 'BMW차량정보' 카테고리 주소 (넣으면 출고후기에 '다른 차종도 전부 정리해 뒀어요' 링크도 붙어요)",
+                                           value=lambda: load_config().get("guide_category_url", ""), scale=4)
+                        g_cat_btn = gr.Button("카테고리 주소 저장", scale=1)
 
                 g_view = [g_table, g_series, g_gallery, g_sched]
                 g_extract_btn.click(guide_extract, g_pdf, [g_log, *g_view])
@@ -610,6 +621,7 @@ def build() -> gr.Blocks:
                 g_off.click(lambda t: guide_schedule(False, t), g_time, g_sched)
                 g_url_btn.click(guide_url, [g_series, g_url], [g_table, g_url])
                 g_refresh.click(guide_view, g_series, g_view)
+                g_cat_btn.click(save_category_url, g_cat, None)
 
             with gr.Tab("📂 지난 글", id="history"):
                 with gr.Column(elem_classes="panel"):

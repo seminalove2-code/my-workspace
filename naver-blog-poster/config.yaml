@@ -23,6 +23,9 @@ publish: false
 # (발행해야 글 주소가 생겨서 출고후기 끝에 "색상·트림·가격 한눈에 보기" 링크가 붙습니다)
 guide_publish: true
 guide_review_count: 3
+# 블로그 'BMW차량정보' 카테고리 주소. 넣으면 출고후기 끝에 "다른 BMW 차종도 전부 정리해 뒀어요" 링크도 붙습니다.
+# (블로그에서 카테고리를 누른 뒤 주소창의 주소를 복사해 넣으세요)
+guide_category_url: ""
 
 # true: PC에 설치된 크롬 사용 (권장) / false: Playwright 내장 크로미움 사용
 use_chrome: true
