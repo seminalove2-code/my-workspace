@@ -172,6 +172,22 @@ def rewrite(folder):
     return write_draft(folder)
 
 
+def add_cards_only(folder, text):
+    if not folder:
+        raise gr.Error("먼저 [지난 글]에서 글을 불러오거나 글을 만들어 주세요.")
+    folder = Path(folder)
+    if generate.post_kind(folder) not in ("출고후기", "차량정보"):
+        raise gr.Error("썸네일·스펙 카드는 출고후기와 차량정보 글에만 넣어요.")
+    load_dotenv(ROOT / ".env", override=True)
+    try:
+        new_text = generate.add_cards(load_config(), folder, text)
+    except ai_providers.AIError as e:
+        raise gr.Error(f"카드 값을 받지 못했습니다: {e}")
+    (folder / DRAFT_FILE).write_text(new_text, encoding="utf-8")
+    gr.Info("본문은 그대로 두고 썸네일과 스펙 카드를 넣었습니다.")
+    return new_text, preview_md(str(folder), new_text)
+
+
 def save_draft(folder, text):
     if not folder:
         raise gr.Error("먼저 글을 만들어 주세요.")
@@ -381,6 +397,7 @@ def build() -> gr.Blocks:
                 with gr.Row():
                     save_btn = gr.Button("💾 고친 내용 저장")
                     redo_btn = gr.Button("🔄 다시 쓰기")
+                    cards_btn = gr.Button("🖼️ 썸네일·스펙 카드만 추가")
                     upload_btn = gr.Button("📤 네이버에 올리기", variant="primary")
                 log = gr.Textbox(label="진행 기록", lines=6, interactive=False)
 
@@ -388,6 +405,7 @@ def build() -> gr.Blocks:
                 outs = [folder, gallery, plate_note, editor, preview, log]
                 make_btn.click(make_post, [kind, trim, ext_color, int_color, story, photos, plate_mode], outs)
                 redo_btn.click(rewrite, folder, outs)
+                cards_btn.click(add_cards_only, [folder, editor], [editor, preview])
                 editor.change(preview_md, [folder, editor], preview)
                 save_btn.click(save_draft, [folder, editor], preview).then(lambda: gr.Info("저장했습니다."))
                 gallery.select(on_select, folder, [selected, sel_note])

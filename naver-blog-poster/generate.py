@@ -186,6 +186,34 @@ def generate(cfg: dict, folder: Path) -> None:
     print(f"[완료] {folder / DRAFT_FILE}  ← 열어서 확인/수정하세요.")
 
 
+CARD_SYSTEM = """You fill in the values for a BMW spec card image from the given price list and memo.
+Use only values that appear in <prices> (판매가격, 제원, 트림별 주요 사양) or <memo>. If a value is not there, use "".
+Match the memo's trim to the price list: [제원] model names are engine names (e.g. trim "X3 20 xDrive M Sport" -> "X3 20").
+price: 만원 number only (e.g. 7,610), the latest model year / latest production price when several are listed.
+power, torque, zero100, top_speed: numbers only. options: 6-8 features a customer notices, each about 12 Korean characters.
+Write all text in Korean except model names."""
+
+
+def add_cards(cfg: dict, folder: Path, text: str) -> str:
+    """본문은 그대로 두고 썸네일(맨 앞)과 스펙 카드('차량 주요 사양' 아래)만 넣은 글을 돌려준다."""
+    memo = read_text(folder / TOPIC_FILE)
+    prices = find_prices(memo) or "(가격표에 이 차종이 없습니다)"
+    values = ai_providers.ask(cfg, CARD_SYSTEM, [("text", f"<prices>\n{prices}\n</prices>\n\n<memo>\n{memo}\n</memo>")],
+                              ai_providers.SpecCard, max_tokens=4000)
+    card.save_card_data(folder, {**values.model_dump(), "kind": post_kind(folder)})
+    card.render(folder, cfg)
+    lines = text.splitlines()
+    if f"[사진: {CARD_FILE}]" not in text:
+        at = next((i + 1 for i, l in enumerate(lines) if l.startswith("> ") and "사양" in l), None)
+        if at is None:  # 사양 소제목이 없으면 상담 안내 앞에
+            at = next((i for i, l in enumerate(lines) if l.startswith("━")), len(lines))
+        lines[at:at] = ["", f"[사진: {CARD_FILE}]", ""]
+    if f"[사진: {THUMB_FILE}]" not in text:
+        at = next((i + 1 for i, l in enumerate(lines) if l.startswith("태그:")), 1)
+        lines[at:at] = ["", f"[사진: {THUMB_FILE}]"]
+    return "\n".join(lines)
+
+
 def main() -> None:
     load_dotenv(ROOT / ".env")
     cfg = load_config()
