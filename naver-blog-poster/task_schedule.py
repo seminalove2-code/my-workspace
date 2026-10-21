@@ -17,7 +17,7 @@ def _ps(script: str) -> str:
     return (r.stdout + r.stderr).strip()
 
 
-def enable(at: str = "09:40") -> str:
+def enable(at: str = "08:30") -> str:
     pyw = ROOT / ".venv" / "Scripts" / "pythonw.exe"
     if not pyw.exists():
         pyw = sys.executable
@@ -28,7 +28,7 @@ $s = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -
 Register-ScheduledTask -TaskName '{TASK}' -Action $a -Trigger $t -Settings $s -Force | Out-Null
 'ok'"""
     out = _ps(script)
-    return f"매일 {at} 무렵(0~90분 사이 아무 때나) 총정리 글을 한 편씩 올립니다." if out.endswith("ok") else f"켜지 못했습니다: {out}"
+    return f"매일 {at} 무렵(0~60분 사이 아무 때나) 총정리 글을 한 편씩 올립니다." if out.endswith("ok") else f"켜지 못했습니다: {out}"
 
 
 def disable() -> str:

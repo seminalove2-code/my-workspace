@@ -313,7 +313,7 @@ def guide_schedule(on, at):
     if sys.platform != "win32":
         raise gr.Error("윈도우에서만 켤 수 있어요.")
     if on and not re.fullmatch(r"\d{1,2}:\d{2}", at.strip()):
-        raise gr.Error("시간은 09:40 처럼 적어주세요.")
+        raise gr.Error("시간은 08:30 처럼 적어주세요.")
     msg = task_schedule.enable(at.strip()) if on else task_schedule.disable()
     gr.Info(msg)
     return task_schedule.status()
@@ -495,7 +495,7 @@ def build() -> gr.Blocks:
                 g_make_btn = gr.Button("✍️ 이 차종 총정리 글 지금 만들기 (글 쓰기 화면에서 확인 후 올리기)")
                 gr.Markdown("#### ③ 매일 자동으로 쓰기")
                 with gr.Row():
-                    g_time = gr.Textbox(value="09:40", label="시작 시각 (이 시각부터 0~90분 사이에 올라가요)")
+                    g_time = gr.Textbox(value="08:30", label="시작 시각 (이 시각부터 1시간 안에 아무 때나 올라가요)")
                     g_on = gr.Button("▶ 매일 자동 켜기", variant="primary")
                     g_off = gr.Button("■ 끄기")
                 g_sched = gr.Markdown()

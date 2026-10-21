@@ -1,7 +1,7 @@
 """작업 스케줄러가 매일 실행: 오늘 아직 안 썼으면 다음 차종 총정리 글 한 편을 쓰고 올린다.
 
   python auto_guide.py          # 바로 실행
-  python auto_guide.py --wait   # 0~90분 쉬었다가 실행 (스케줄러용)
+  python auto_guide.py --wait   # 0~60분 쉬었다가 실행 (스케줄러용)
 """
 import sys
 from datetime import datetime

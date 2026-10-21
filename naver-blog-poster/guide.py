@@ -492,8 +492,8 @@ def run_daily(cfg: dict, wait: bool = False, log=print) -> None:
     if not series:
         log("[끝] 사진이 있는 모든 차종의 총정리 글을 다 썼습니다.")
         return
-    if wait:  # 매일 같은 시각에 올라가지 않게 0~90분 쉬었다가 시작
-        time.sleep(random.randint(0, 90 * 60))
+    if wait:  # 매일 같은 시각에 올라가지 않게 0~60분 쉬었다가 시작 (08:30 에 켜지면 9:30 전에 끝)
+        time.sleep(random.randint(0, 60 * 60))
     folder = make(cfg, series, log)
     if folder and (folder / DRAFT_FILE).exists():
         post.run_posts(cfg, [folder])
