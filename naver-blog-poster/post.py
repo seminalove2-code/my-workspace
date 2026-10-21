@@ -15,7 +15,7 @@ from pathlib import Path
 from playwright.sync_api import Error as PWError, FrameLocator, Page, TimeoutError as PWTimeout, sync_playwright
 
 from browser import open_browser
-from common import (CARD_DIR, DRAFT_FILE, POSTED_FILE, ROOT, TOPIC_FILE, Draft, load_config, post_folders,
+from common import (CARD_DIR, DRAFT_FILE, with_fixed_tags, POSTED_FILE, ROOT, TOPIC_FILE, Draft, load_config, post_folders,
                     post_kind, read_draft, resolve_folder, upload_image)
 
 # 네이버 에디터 화면이 바뀌면 여기만 고치면 된다.
@@ -230,7 +230,7 @@ def fill_editor(page: Page, ed: FrameLocator, cfg: dict, folder: Path, draft: Dr
         pause()
     # 글 맨 끝에 태그 한 줄 (#태그1 #태그2 ...). 임시저장할 때도 태그가 글에 남는다.
     if draft.tags and cfg.get("body_tags", True):
-        type_lines(page, " ".join(f"#{t}" for t in draft.tags[:10]))
+        type_lines(page, " ".join(f"#{t}" for t in with_fixed_tags(cfg, draft.tags)[:10]))
 
 
 def open_publish_layer(ed: FrameLocator, category: str, tags: list[str]) -> None:
@@ -283,12 +283,12 @@ def post_one(page: Page, cfg: dict, folder: Path, test: bool) -> None:
     fill_editor(page, ed, cfg, folder, draft)
 
     if test:
-        open_publish_layer(ed, category, draft.tags)
+        open_publish_layer(ed, category, with_fixed_tags(cfg, draft.tags))
         input("[테스트] 발행 직전까지 입력했습니다. 브라우저에서 확인 후 Enter 를 누르면 창을 닫습니다 (발행 안 함)...")
         return
 
     if cfg.get("publish", True):
-        open_publish_layer(ed, category, draft.tags)
+        open_publish_layer(ed, category, with_fixed_tags(cfg, draft.tags))
         ed.locator(SEL["publish_layer"]).first.locator(SEL["publish_confirm"]).first.click()
         page.wait_for_url(lambda url: "Redirect=Write" not in url, timeout=30000)
         result = page.url

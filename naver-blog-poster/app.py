@@ -36,7 +36,7 @@ import post
 import task_schedule
 import settings_io
 from common import (BLUR_DIR, CARD_DIR, CARD_FILE, DRAFT_FILE, POSTED_FILE, POSTS_DIR, THUMB_FILE, TOPIC_FILE, IMAGE_EXTS,
-                    Block, Draft, list_images, load_config, needs_blur, read_draft, upload_image)
+                    Block, Draft, list_images, with_fixed_tags, load_config, needs_blur, read_draft, upload_image)
 from common import write_draft as save_draft_file
 
 PRICE_FILE = ROOT / "data" / "가격표.txt"
@@ -227,7 +227,7 @@ def preview_html(folder, title, tags, blocks) -> str:
     import html as h
     cfg = load_config()
     out = [f"<h1>{h.escape(title or '')}</h1>"]
-    tag_list = [t.strip() for t in (tags or "").split(",") if t.strip()]
+    tag_list = with_fixed_tags(cfg, [t.strip() for t in (tags or "").split(",") if t.strip()])
     for k, text in blocks:
         if k == "image":
             img = upload_image(cfg, Path(folder), text) if folder else None

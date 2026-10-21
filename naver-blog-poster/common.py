@@ -31,6 +31,12 @@ def load_config() -> dict:
         return yaml.safe_load(f)
 
 
+def with_fixed_tags(cfg: dict, tags: list[str]) -> list[str]:
+    """모든 글에 늘 들어가는 태그(config 의 fixed_tags, 기본 BMW최현정)를 맨 앞에 붙인다."""
+    fixed = cfg.get("fixed_tags", ["BMW최현정"]) or []
+    return list(dict.fromkeys([*fixed, *tags]))
+
+
 def needs_blur(cfg: dict, folder: Path) -> bool:
     """자동 가리기를 할지. topic.txt 에 '번호판: 직접 가림' 이 있으면 하지 않는다 (API 비용 절약)."""
     if not cfg.get("blur_plates", True):
