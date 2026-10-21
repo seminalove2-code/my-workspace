@@ -22,6 +22,18 @@ class AIDraft(BaseModel):
     blocks: list[AIBlock]
 
 
+class PlateBox(BaseModel):
+    # 사진 크기를 0~1000으로 본 좌표 (왼쪽 위가 0,0)
+    x1: int
+    y1: int
+    x2: int
+    y2: int
+
+
+class Plates(BaseModel):
+    plates: list[PlateBox]
+
+
 class AIError(Exception):
     pass
 
@@ -39,9 +51,14 @@ def model(cfg: dict) -> str:
 
 
 def write(cfg: dict, system: str, content: list[tuple[str, object]]) -> AIDraft:
+    return ask(cfg, system, content, AIDraft)
+
+
+def ask(cfg: dict, system: str, content: list[tuple[str, object]], schema: type[BaseModel],
+        max_tokens: int = 16000):
     name = provider(cfg)
     try:
-        return {"claude": _claude, "openai": _openai, "gemini": _gemini}[name](cfg, system, content)
+        return {"claude": _claude, "openai": _openai, "gemini": _gemini}[name](cfg, system, content, schema, max_tokens)
     except AIError:
         raise
     except Exception as e:  # 회사마다 오류 종류가 달라 메시지로 안내
@@ -57,7 +74,7 @@ def _b64(data: bytes) -> str:
     return base64.standard_b64encode(data).decode()
 
 
-def _claude(cfg: dict, system: str, content: list) -> AIDraft:
+def _claude(cfg: dict, system: str, content: list, schema, max_tokens: int):
     import anthropic
 
     parts = [{"type": "text", "text": v} if k == "text" else
@@ -65,14 +82,14 @@ def _claude(cfg: dict, system: str, content: list) -> AIDraft:
              for k, v in content]
     response = anthropic.Anthropic().beta.messages.parse(
         model=model(cfg),
-        max_tokens=16000,
+        max_tokens=max_tokens,
         output_config={"effort": cfg.get("effort", "medium")},
         # 안전 필터에 걸리면 다른 모델로 자동 재시도
         betas=["server-side-fallback-2026-07-01"],
         fallbacks="default",
         system=system,
         messages=[{"role": "user", "content": parts}],
-        output_format=AIDraft,
+        output_format=schema,
     )
     if response.stop_reason == "refusal":
         raise AIError("AI가 이 글 작성을 거절했습니다. 메모 내용을 확인해 주세요.")
@@ -81,7 +98,7 @@ def _claude(cfg: dict, system: str, content: list) -> AIDraft:
     return response.parsed_output
 
 
-def _openai(cfg: dict, system: str, content: list) -> AIDraft:
+def _openai(cfg: dict, system: str, content: list, schema, max_tokens: int):
     from openai import OpenAI
 
     parts = [{"type": "input_text", "text": v} if k == "text" else
@@ -94,8 +111,8 @@ def _openai(cfg: dict, system: str, content: list) -> AIDraft:
         model=model(cfg),
         instructions=system,
         input=[{"role": "user", "content": parts}],
-        text_format=AIDraft,
-        max_output_tokens=16000,
+        text_format=schema,
+        max_output_tokens=max_tokens,
         **extra,
     )
     if response.output_parsed is None:
@@ -103,7 +120,7 @@ def _openai(cfg: dict, system: str, content: list) -> AIDraft:
     return response.output_parsed
 
 
-def _gemini(cfg: dict, system: str, content: list) -> AIDraft:
+def _gemini(cfg: dict, system: str, content: list, schema, max_tokens: int):
     from google import genai
     from google.genai import types
 
@@ -117,15 +134,15 @@ def _gemini(cfg: dict, system: str, content: list) -> AIDraft:
         config=types.GenerateContentConfig(
             system_instruction=system,
             response_mime_type="application/json",
-            response_schema=AIDraft,
-            max_output_tokens=16000,
+            response_schema=schema,
+            max_output_tokens=max_tokens,
         ),
     )
     parsed = response.parsed
-    if isinstance(parsed, AIDraft):
+    if isinstance(parsed, schema):
         return parsed
     if response.text:
-        return AIDraft.model_validate_json(response.text)
+        return schema.model_validate_json(response.text)
     raise AIError("응답을 읽지 못했습니다. (AI가 거절했거나 답이 잘렸을 수 있습니다)")
 
 

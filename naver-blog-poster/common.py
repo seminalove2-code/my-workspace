@@ -15,6 +15,7 @@ TOPIC_FILE = "topic.txt"
 REFERENCE_FILE = "reference.txt"
 DRAFT_FILE = "draft.md"
 POSTED_FILE = "posted.txt"
+BLUR_DIR = "가림"  # 번호판을 가린 사진이 저장되는 하위 폴더
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 # Windows 콘솔에서 한글이 깨지지 않게
@@ -25,6 +26,27 @@ if hasattr(sys.stdout, "reconfigure"):
 def load_config() -> dict:
     with open(ROOT / "config.yaml", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def needs_blur(cfg: dict, folder: Path) -> bool:
+    """자동 가리기를 할지. topic.txt 에 '번호판: 직접 가림' 이 있으면 하지 않는다 (API 비용 절약)."""
+    if not cfg.get("blur_plates", True):
+        return False
+    topic = folder / TOPIC_FILE
+    for line in (topic.read_text(encoding="utf-8-sig").splitlines() if topic.exists() else []):
+        line = line.replace("：", ":").strip()
+        if line.startswith("번호판:") and any(w in line for w in ("직접", "완료", "없음")):
+            return False
+    return True
+
+
+def upload_image(cfg: dict, folder: Path, name: str) -> Path | None:
+    """블로그에 올릴 사진. 자동 가리기를 하는 글은 가린 사본만 쓴다."""
+    if needs_blur(cfg, folder):
+        p = folder / BLUR_DIR / name
+        return p if p.exists() else None
+    p = folder / name
+    return p if p.exists() else None
 
 
 def list_images(folder: Path) -> list[Path]:

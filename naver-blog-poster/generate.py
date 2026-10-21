@@ -4,19 +4,18 @@
   python generate.py             # 아직 draft.md 가 없는 모든 글 폴더
   python generate.py 글폴더이름    # 특정 폴더만 (기존 draft.md 덮어씀)
 """
-import io
 import re
 import sys
 from pathlib import Path
 from typing import Literal
 
 from dotenv import load_dotenv
-from PIL import Image
 
 import ai_providers
+import blur
 
 from common import (DRAFT_FILE, REFERENCE_FILE, REFERENCES_DIR, ROOT, TOPIC_FILE,
-                    Block, Draft, list_images, load_config, post_folders, post_kind,
+                    Block, Draft, list_images, needs_blur, upload_image, load_config, post_folders, post_kind,
                     resolve_folder, write_draft)
 
 MAX_SIDE = 1568  # API로 보낼 때만 줄임. 블로그에는 원본이 올라감.
@@ -66,13 +65,7 @@ SYSTEM = """당신은 네이버 블로그 글을 쓰는 작가입니다.
 
 
 def encode_image(path: Path) -> bytes:
-    img = Image.open(path)
-    img.thumbnail((MAX_SIDE, MAX_SIDE))
-    if img.mode not in ("RGB", "L"):
-        img = img.convert("RGB")
-    buf = io.BytesIO()
-    img.save(buf, format="JPEG", quality=85)
-    return buf.getvalue()
+    return blur.to_jpeg(blur.load_upright(path), MAX_SIDE)
 
 
 def load_references(folder: Path) -> list[str]:
@@ -124,7 +117,8 @@ def build_content(folder: Path, images: list[Path], references: list[str], cfg: 
         content.append(("text", f'<reference index="{i}">\n{ref}\n</reference>'))
     for img in images:
         content.append(("text", f"사진 파일 이름: {img.name}"))
-        content.append(("image", encode_image(img)))
+        shown = upload_image(cfg, folder, img.name) or img
+        content.append(("image", encode_image(shown)))
     memo = read_text(folder / TOPIC_FILE)
     prices = find_prices(memo) or "(가격표에 이 차종이 없습니다. 가격은 쓰지 마세요.)"
     guide = read_text(GUIDE_DIR / f"{post_kind(folder)}.txt")
@@ -143,6 +137,9 @@ def generate(cfg: dict, folder: Path) -> None:
         print(f"[건너뜀] {folder.name}: {TOPIC_FILE} 이 없습니다.")
         return
     images = list_images(folder)
+    if needs_blur(cfg, folder) and images and not blur.blur_folder(cfg, folder):
+        print(f"[중단] {folder.name}: 번호판 가리기에 실패한 사진이 있어 글을 쓰지 않았습니다. write.bat 을 다시 실행하세요.")
+        return
     references = load_references(folder)
     if not PRICE_FILE.exists():
         print(f"[주의] {PRICE_FILE.relative_to(ROOT)} 가 없어 가격 없이 씁니다.")

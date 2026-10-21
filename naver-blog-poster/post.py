@@ -15,7 +15,7 @@ from playwright.sync_api import Error as PWError, FrameLocator, Page, TimeoutErr
 
 from browser import open_browser
 from common import (DRAFT_FILE, POSTED_FILE, ROOT, TOPIC_FILE, Draft, load_config, post_folders,
-                    post_kind, read_draft, resolve_folder)
+                    post_kind, read_draft, resolve_folder, upload_image)
 
 # 네이버 에디터 화면이 바뀌면 여기만 고치면 된다.
 SEL = {
@@ -114,7 +114,7 @@ def insert_heading(page: Page, text: str) -> None:
     page.keyboard.press("Control+B")
 
 
-def fill_editor(page: Page, ed: FrameLocator, folder: Path, draft: Draft) -> None:
+def fill_editor(page: Page, ed: FrameLocator, cfg: dict, folder: Path, draft: Draft) -> None:
     ed.locator(SEL["title"]).first.click()
     page.keyboard.insert_text(draft.title)
     pause()
@@ -122,10 +122,10 @@ def fill_editor(page: Page, ed: FrameLocator, folder: Path, draft: Draft) -> Non
     ed.locator(SEL["body_text"]).last.click()
     for i, block in enumerate(draft.blocks):
         if block.kind == "image":
-            path = folder / block.text
-            if not path.exists():
-                print(f"  [주의] 사진 파일이 없어 건너뜀: {block.text}")
-                continue
+            path = upload_image(cfg, folder, block.text)
+            if path is None:
+                raise RuntimeError(f"올릴 사진이 없습니다: {block.text} "
+                                   "(번호판 가린 사진이 없으면 write.bat 을 다시 실행하세요)")
             insert_image(page, ed, path)
             continue
         if block.kind == "quote":
@@ -183,7 +183,7 @@ def post_one(page: Page, cfg: dict, folder: Path, test: bool) -> None:
     pause(1.5, 2.5)
     close_popups(ed)
 
-    fill_editor(page, ed, folder, draft)
+    fill_editor(page, ed, cfg, folder, draft)
 
     if test:
         open_publish_layer(ed, category, draft.tags)

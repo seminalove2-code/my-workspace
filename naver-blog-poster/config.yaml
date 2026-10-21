@@ -24,6 +24,11 @@ use_chrome: true
 # 브라우저 창을 숨길지 여부. 처음엔 false로 두고 잘 되는지 눈으로 확인하세요.
 headless: false
 
+# 번호판 자동 가리기: true 면 글 쓰기 전에 AI가 번호판을 찾아 모자이크한 사본을 '가림' 폴더에 만들고,
+# 블로그에는 그 사진만 올립니다. 결과는 꼭 '가림' 폴더에서 눈으로 확인하세요.
+# 사진을 미리 직접 가렸다면 그 글의 topic.txt 에 "번호판: 직접 가림" 한 줄을 넣으면 건너뜁니다. (API 비용 없음)
+blur_plates: true
+
 # ── AI 글쓰기 설정 ──
 # 글을 쓸 AI: claude / openai / gemini  (.env 에 그 회사의 API 키가 있어야 합니다)
 ai: "openai"
