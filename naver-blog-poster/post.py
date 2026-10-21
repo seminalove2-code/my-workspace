@@ -11,7 +11,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from playwright.sync_api import FrameLocator, Page, TimeoutError as PWTimeout, sync_playwright
+from playwright.sync_api import Error as PWError, FrameLocator, Page, TimeoutError as PWTimeout, sync_playwright
 
 from browser import open_browser
 from common import (DRAFT_FILE, POSTED_FILE, ROOT, TOPIC_FILE, Draft, load_config, post_folders,
@@ -170,7 +170,10 @@ def post_one(page: Page, cfg: dict, folder: Path, test: bool) -> None:
     category = ((cfg.get("categories") or {}).get(kind) or cfg.get("category") or "").strip()
     print(f"[입력 중] {folder.name}: {draft.title}")
 
-    page.goto(f"https://blog.naver.com/{cfg['blog_id']}?Redirect=Write&")
+    try:
+        page.goto(f"https://blog.naver.com/{cfg['blog_id']}?Redirect=Write&")
+    except PWError:  # 로그인이 풀려 있으면 로그인 화면으로 넘어가며 이동이 끊긴다
+        pass
     page.wait_for_load_state("domcontentloaded")
     if "nid.naver.com" in page.url:
         sys.exit("로그인이 풀렸습니다. login.bat 을 다시 실행하세요.")
