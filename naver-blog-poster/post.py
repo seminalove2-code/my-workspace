@@ -27,6 +27,8 @@ SEL = {
     "components": ".se-components-wrap > .se-component",
     "image_component": ".se-component.se-image",
     "image_button": "button.se-image-toolbar-button",
+    "quote_button": "button.se-insert-quotation-default-toolbar-button, button[data-name='quotation']",
+    "quote_component": ".se-component.se-quotation",
     "publish_open": "button[class*='publish_btn']",     # 오른쪽 위 '발행'
     "save": "button[class*='save_btn']",                # '저장' (임시저장)
     "publish_layer": "div[class*='layer_publish']",
@@ -63,9 +65,14 @@ def type_lines(page: Page, text: str) -> None:
 def move_caret_below_last(page: Page, ed: FrameLocator) -> None:
     """사진을 넣은 뒤, 사진 아래 새 줄로 커서를 옮긴다."""
     last = ed.locator(SEL["components"]).last
-    if "se-image" in (last.get_attribute("class") or ""):
+    cls = last.get_attribute("class") or ""
+    if "se-image" in cls:
         last.click()
         page.keyboard.press("Enter")
+    elif "se-quotation" in cls:
+        last.locator(".se-text-paragraph").last.click()
+        page.keyboard.press("End")
+        page.keyboard.press("ArrowDown")
     else:
         last.locator(".se-text-paragraph").last.click()
         page.keyboard.press("End")
@@ -87,6 +94,26 @@ def insert_image(page: Page, ed: FrameLocator, path: Path) -> None:
     move_caret_below_last(page, ed)
 
 
+def insert_quote(page: Page, ed: FrameLocator, text: str) -> None:
+    btn = ed.locator(SEL["quote_button"]).first
+    if not btn.count():  # 인용구 버튼을 못 찾으면 굵은 글씨로 대신
+        insert_heading(page, text)
+        return
+    before = ed.locator(SEL["quote_component"]).count()
+    btn.click()
+    ed.locator(SEL["quote_component"]).nth(before).wait_for(timeout=5000)
+    ed.locator(SEL["quote_component"]).nth(before).locator(".se-text-paragraph").first.click()
+    page.keyboard.insert_text(text)
+    pause()
+    move_caret_below_last(page, ed)
+
+
+def insert_heading(page: Page, text: str) -> None:
+    page.keyboard.press("Control+B")
+    page.keyboard.insert_text(text)
+    page.keyboard.press("Control+B")
+
+
 def fill_editor(page: Page, ed: FrameLocator, folder: Path, draft: Draft) -> None:
     ed.locator(SEL["title"]).first.click()
     page.keyboard.insert_text(draft.title)
@@ -101,14 +128,15 @@ def fill_editor(page: Page, ed: FrameLocator, folder: Path, draft: Draft) -> Non
                 continue
             insert_image(page, ed, path)
             continue
+        if block.kind == "quote":
+            insert_quote(page, ed, block.text)
+            continue
         if block.kind == "heading":
-            page.keyboard.press("Control+B")
-            page.keyboard.insert_text(block.text)
-            page.keyboard.press("Control+B")
+            insert_heading(page, block.text)
         else:
             type_lines(page, block.text)
-        next_is_image = i + 1 < len(draft.blocks) and draft.blocks[i + 1].kind == "image"
-        if not next_is_image:
+        next_is_box = i + 1 < len(draft.blocks) and draft.blocks[i + 1].kind in ("image", "quote")
+        if not next_is_box:
             page.keyboard.press("Enter")
             page.keyboard.press("Enter")
         pause()

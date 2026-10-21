@@ -1,10 +1,15 @@
-"""잘 되는 네이버 블로그 글 주소를 주면, 구조(소제목/사진 위치/문단)를 살려 references/ 에 저장한다.
+"""잘 되는 네이버 블로그 글을 구조(소제목/인용구/사진 위치/문단)를 살려 references/ 에 저장한다.
 
 사용법:
-  python fetch_reference.py https://blog.naver.com/아이디/글번호
+  python fetch_reference.py <글 주소>                  # 글 하나
+  python fetch_reference.py <블로그 주소> [종류] [개수]  # 그 블로그의 최근 글 여러 개 (기본 5개)
+  예) python fetch_reference.py https://blog.naver.com/hth1890 출고후기 5
+     → references/출고후기/ 에 저장
 """
+import json
 import re
 import sys
+import urllib.request
 
 from playwright.sync_api import sync_playwright
 
@@ -40,30 +45,68 @@ EXTRACT_JS = """
 """
 
 
-def main() -> None:
-    if len(sys.argv) < 2:
-        sys.exit("사용법: python fetch_reference.py <네이버 블로그 글 주소>")
-    url = sys.argv[1].strip().replace("://blog.naver.com", "://m.blog.naver.com")
+MIN_BODY = 800  # 이보다 짧은 글(사진만 있는 글 등)은 레퍼런스로 쓰지 않음
 
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
-        page = browser.new_page(locale="ko-KR")
-        page.goto(url)
-        page.wait_for_selector(".se-main-container", timeout=20000)
-        data = page.evaluate(EXTRACT_JS)
-        browser.close()
 
-    if not data["body"]:
-        sys.exit("본문을 찾지 못했습니다. 스마트에디터 ONE 으로 쓴 글인지 확인하세요.")
+def parse_url(url: str) -> tuple[str, str]:
+    m = re.search(r"blog\.naver\.com/(?:PostView\.naver\?blogId=)?([A-Za-z0-9_-]+)(?:/|&logNo=)?(\d+)?", url)
+    if not m:
+        sys.exit(f"네이버 블로그 주소가 아닙니다: {url}")
+    return m.group(1), m.group(2) or ""
+
+
+def recent_posts(blog_id: str, count: int) -> list[str]:
+    api = f"https://m.blog.naver.com/api/blogs/{blog_id}/post-list?categoryNo=0&itemCount={count}&page=1"
+    req = urllib.request.Request(api, headers={"Referer": f"https://m.blog.naver.com/{blog_id}",
+                                               "User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        items = json.load(r)["result"]["items"]
+    return [str(i["logNo"]) for i in items]
+
+
+def save(data: dict, out_dir) -> None:
     text = f"# {data['title']}\n\n{data['body']}\n"
     if data["tags"]:
         text += f"\n태그: {' '.join(data['tags'])}\n"
-
-    REFERENCES_DIR.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     name = re.sub(r'[\\/:*?"<>|]', "", data["title"])[:50].strip() or "reference"
-    path = REFERENCES_DIR / f"{name}.txt"
+    path = out_dir / f"{name}.txt"
     path.write_text(text, encoding="utf-8")
-    print(f"[저장] {path}")
+    print(f"[저장] {path.relative_to(REFERENCES_DIR.parent)}")
+
+
+def main() -> None:
+    if len(sys.argv) < 2:
+        sys.exit(__doc__)
+    blog_id, log_no = parse_url(sys.argv[1].strip())
+    kind = sys.argv[2].strip() if len(sys.argv) > 2 else ""
+    count = int(sys.argv[3]) if len(sys.argv) > 3 else 5
+    out_dir = REFERENCES_DIR / kind if kind else REFERENCES_DIR
+
+    # 블로그 주소만 주면 짧은 글을 건너뛰기 위해 넉넉히 가져온다
+    log_nos = [log_no] if log_no else recent_posts(blog_id, count * 3)
+    saved = 0
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page(locale="ko-KR")
+        for no in log_nos:
+            if saved >= count:
+                break
+            page.goto(f"https://m.blog.naver.com/{blog_id}/{no}")
+            try:
+                page.wait_for_selector(".se-main-container", timeout=20000)
+            except Exception:
+                print(f"[건너뜀] {no}: 스마트에디터 ONE 글이 아닙니다.")
+                continue
+            data = page.evaluate(EXTRACT_JS)
+            if not log_no and len(data["body"]) < MIN_BODY:
+                print(f"[건너뜀] 글이 짧음: {data['title']}")
+                continue
+            save(data, out_dir)
+            saved += 1
+        browser.close()
+    if not saved:
+        print("저장한 글이 없습니다.")
 
 
 if __name__ == "__main__":

@@ -20,10 +20,11 @@ from common import (DRAFT_FILE, REFERENCE_FILE, REFERENCES_DIR, ROOT, TOPIC_FILE
                     resolve_folder, write_draft)
 
 MAX_SIDE = 1568  # API로 보낼 때만 줄임. 블로그에는 원본이 올라감.
+MAX_REFERENCES = 5
 
 
 class AIBlock(BaseModel):
-    kind: Literal["heading", "paragraph", "image"]
+    kind: Literal["heading", "quote", "paragraph", "image"]
     text: str  # image 이면 사진 파일 이름
 
 
@@ -45,8 +46,17 @@ SYSTEM = """당신은 네이버 블로그 글을 쓰는 작가입니다.
 단, 레퍼런스의 문장을 그대로 옮기지 마세요. 네이버는 비슷한 문장이 많은 글을 유사문서로 판단해 노출을 낮춥니다.
 구조와 말투만 가져오고, 내용과 문장은 메모와 사진으로 새로 쓰세요.
 
+이 블로그의 목표는 네이버 검색 상위노출입니다. 메모에 "키워드:" 가 있으면:
+- 제목 맨 앞쪽에 대표 키워드를 그대로 넣습니다. (레퍼런스 제목 형식 안에서)
+- 첫 문단과 본문 중간, 마무리에 키워드를 자연스럽게 2~4번 씁니다. 억지로 반복하지 마세요. 과하면 오히려 어뷰징으로 판단됩니다.
+- 태그에 대표 키워드와 연관 키워드(지역, 차종, 상황 등)를 넣습니다.
+- 검색한 사람이 궁금해할 정보(사양, 가격, 차이점, 실제 경험)를 메모 범위 안에서 충실히 담습니다.
+
 규칙:
-- blocks 는 글 순서대로 나열합니다. kind 는 heading(소제목), paragraph(문단), image(사진) 중 하나입니다.
+- blocks 는 글 순서대로 나열합니다. kind 는 heading(굵은 소제목), quote(인용구 상자), paragraph(문단), image(사진) 중 하나입니다.
+- 레퍼런스에서 "[인용] ..." 으로 표시된 곳은 인용구 상자입니다. 같은 자리에 quote 블록을 쓰세요. "## ..." 은 heading 입니다.
+- 레퍼런스의 [스티커], [동영상], [지도], [링크] 는 넣을 수 없으니 건너뜁니다.
+- 레퍼런스에 나온 가격, 사양, 이름 같은 사실은 다른 글의 정보이므로 절대 가져오지 마세요. 사실 정보는 메모에 있는 것만 씁니다.
 - image 블록의 text 에는 주어진 사진 파일 이름을 정확히 그대로 씁니다. 모든 사진을 한 번씩만 사용하세요.
 - 사진 내용과 어울리는 위치에 사진을 배치하세요.
 - paragraph 안의 줄바꿈은 레퍼런스의 줄바꿈 습관을 따릅니다.
@@ -63,12 +73,27 @@ def encode_image(path: Path) -> tuple[str, str]:
     return "image/jpeg", base64.standard_b64encode(buf.getvalue()).decode()
 
 
+def reference_kind(folder: Path) -> str:
+    """topic.txt 첫 줄이 '종류: 출고후기' 이면 references/출고후기/ 를 쓴다."""
+    first = (folder / TOPIC_FILE).read_text(encoding="utf-8-sig").splitlines()[:1]
+    if first and first[0].replace("：", ":").startswith("종류:"):
+        return first[0].split(":", 1)[1].strip()
+    return ""
+
+
 def load_references(folder: Path) -> list[str]:
     own = folder / REFERENCE_FILE
     if own.exists():
         return [own.read_text(encoding="utf-8-sig")]
-    return [p.read_text(encoding="utf-8-sig")
-            for p in sorted(REFERENCES_DIR.glob("*.txt")) if p.name != "README.txt"]
+    kind = reference_kind(folder)
+    base = REFERENCES_DIR / kind if kind else REFERENCES_DIR
+    if kind and not base.is_dir():
+        print(f"[주의] references/{kind} 폴더가 없어 references 의 글을 씁니다.")
+        base = REFERENCES_DIR
+    files = sorted(p for p in base.glob("*.txt") if p.name != "README.txt")
+    if not files and not kind:  # 종류 없이 하위 폴더에만 있을 때
+        files = sorted(p for p in base.rglob("*.txt") if p.name != "README.txt")
+    return [p.read_text(encoding="utf-8-sig") for p in files[:MAX_REFERENCES]]
 
 
 def build_content(folder: Path, images: list[Path], references: list[str], style: str) -> list[dict]:

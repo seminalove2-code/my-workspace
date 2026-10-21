@@ -5,6 +5,6 @@ __pycache__/
 logs/
 # 개인 글/사진은 저장소에 올리지 않음 (예시 폴더만 예외)
 posts/*
-!posts/예시-제주카페/
+!posts/예시-출고후기/
 references/*
 !references/README.txt

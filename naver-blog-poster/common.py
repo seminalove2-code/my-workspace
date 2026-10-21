@@ -52,12 +52,13 @@ def resolve_folder(arg: str) -> Path:
 # 태그: 태그1, 태그2
 #
 # ## 소제목          → 굵은 글씨 한 줄
+# > 인용구           → 인용구 상자
 # 일반 문단          → 그대로
 # [사진: 파일이름.jpg] → 폴더 안의 사진 업로드
 
 @dataclass
 class Block:
-    kind: str  # "heading" | "paragraph" | "image"
+    kind: str  # "heading" | "quote" | "paragraph" | "image"
     text: str
 
 
@@ -76,6 +77,8 @@ def write_draft(path: Path, draft: Draft) -> None:
     for b in draft.blocks:
         if b.kind == "heading":
             lines.append(f"## {b.text}")
+        elif b.kind == "quote":
+            lines.append(f"> {b.text}")
         elif b.kind == "image":
             lines.append(f"[사진: {b.text}]")
         else:
@@ -106,6 +109,9 @@ def read_draft(path: Path) -> Draft:
         elif line.startswith("## "):
             flush()
             blocks.append(Block("heading", line[3:].strip()))
+        elif line.startswith("> "):
+            flush()
+            blocks.append(Block("quote", line[2:].strip()))
         elif m := IMAGE_LINE.match(line.strip()):
             flush()
             blocks.append(Block("image", m.group(1)))
