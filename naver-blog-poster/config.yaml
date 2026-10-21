@@ -1,0 +1,27 @@
+# ── 네이버 블로그 자동포스팅 설정 ──
+
+# 내 블로그 아이디 (blog.naver.com/여기부분)
+blog_id: "my_blog_id"
+
+# 발행할 카테고리 이름. 비워두면 기본 카테고리로 올라갑니다.
+category: ""
+
+# true: 바로 발행 / false: 임시저장만 (네이버에서 직접 확인 후 발행)
+publish: true
+
+# true: PC에 설치된 크롬 사용 (권장) / false: Playwright 내장 크로미움 사용
+use_chrome: true
+
+# 브라우저 창을 숨길지 여부. 처음엔 false로 두고 잘 되는지 눈으로 확인하세요.
+headless: false
+
+# ── AI 글쓰기 설정 ──
+model: "claude-opus-5-5"
+# low / medium / high : 높을수록 꼼꼼하지만 느리고 비쌉니다.
+effort: "medium"
+
+# 레퍼런스 글과 별개로 항상 지킬 규칙
+style: |
+  - 친근한 존댓말로 씁니다.
+  - 메모와 사진에 없는 사실(가격, 영업시간, 위치 등)은 지어내지 않습니다.
+  - 광고 문구처럼 과장하지 않습니다.

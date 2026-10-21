@@ -1,0 +1,10 @@
+.env
+browser_profile/
+__pycache__/
+.venv/
+logs/
+# 개인 글/사진은 저장소에 올리지 않음 (예시 폴더만 예외)
+posts/*
+!posts/예시-제주카페/
+references/*
+!references/README.txt

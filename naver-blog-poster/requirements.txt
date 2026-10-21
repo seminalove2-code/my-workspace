@@ -1,0 +1,6 @@
+anthropic>=1.17.0
+pydantic>=2
+pyyaml
+python-dotenv
+pillow
+playwright

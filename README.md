@@ -2,6 +2,8 @@
 
 유튜브 영상을 Claude에게 학습시키고, 정리한 내용을 쌓아 두는 저장소입니다.
 
+네이버 블로그 자동포스팅 프로그램은 [`naver-blog-poster/`](naver-blog-poster/README.md)에 있습니다.
+
 ## 사용법
 
 claude.ai/code 에서 이 저장소로 세션을 열고 이렇게 말하면 됩니다.
@@ -17,4 +19,5 @@ claude.ai/code 에서 이 저장소로 세션을 열고 이렇게 말하면 됩�
 |------|------|
 | `notes/youtube/` | 영상별 정리본 |
 | `notes/youtube/INDEX.md` | 정리한 영상 목록 |
+| `naver-blog-poster/` | 네이버 블로그 자동포스팅 (윈도우용, AI 글쓰기) |
 | `.claude/skills/youtube-study/SKILL.md` | 정리 형식과 규칙. 바꾸고 싶으면 Claude에게 "정리 형식에 ○○ 항목 추가해줘"라고 하면 됩니다. |
