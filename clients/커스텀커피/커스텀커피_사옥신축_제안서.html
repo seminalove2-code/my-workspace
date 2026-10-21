@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>커스텀커피 사옥 신축 제안서</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:#1C1F24; --blue:#5E7386; --blue-dark:#3F5467; --blue-soft:#EBEEF2;
+    --ink:#1C1F24; --sub:#5C636C; --line:#C9CED4; --bg:#F4F5F6; --gray-bar:#A9B1BA;
+  }
+  @page { size: 1280px 720px; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: #fff; }
+  body {
+    font-family: "Noto Sans KR", "Malgun Gothic", sans-serif; color: var(--ink);
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    word-break: keep-all; overflow-wrap: break-word; line-break: strict;
+    font-size: 17px; line-height: 1.55;
+  }
+  h1, h2, h3, p, li, td, th, .answer, .note, .lead { text-wrap: pretty; }
+  h1, h2 { text-wrap: balance; }
+
+  .slide { width:1280px; height:720px; position:relative; overflow:hidden;
+           padding:64px 80px 56px; page-break-after:always; break-after:page; background:#fff; }
+  .slide:last-child { page-break-after:auto; break-after:auto; }
+  .slide.core { border-left:14px solid var(--blue); padding-left:72px; }
+
+  .tag { display:inline-block; font-size:14px; font-weight:700; color:var(--blue-dark);
+         letter-spacing:.04em; border-bottom:2px solid var(--blue); padding-bottom:2px; margin-bottom:14px; }
+  h2 { font-size:34px; font-weight:800; line-height:1.3; margin-bottom:10px; }
+  .lead { font-size:18px; color:var(--sub); margin-bottom:22px; }
+  .footer { position:absolute; left:80px; right:80px; bottom:24px; display:flex; justify-content:space-between;
+            font-size:12px; color:var(--sub); border-top:1px solid var(--line); padding-top:8px; }
+  .slide.core .footer { left:72px; }
+
+  /* 표지 */
+  .cover { background:#fff; border-left:18px solid var(--blue); display:flex; flex-direction:column; justify-content:center; padding-left:110px; }
+  .cover .kicker { font-size:16px; font-weight:700; letter-spacing:.12em; color:var(--blue-dark); margin-bottom:26px; }
+  .cover h1 { font-size:58px; font-weight:800; line-height:1.25; }
+  .cover .draft { display:inline-block; margin-top:26px; font-size:15px; font-weight:700; color:var(--ink);
+                  border:2px solid var(--ink); padding:4px 14px; }
+  .cover .meta { position:absolute; left:110px; bottom:70px; font-size:18px; color:var(--sub); }
+  .cover .meta b { color:var(--ink); }
+
+  .answer { background:var(--blue-soft); border-left:8px solid var(--blue); padding:20px 26px; font-size:21px; font-weight:700; line-height:1.5; }
+  .note { font-size:13px; color:var(--sub); }
+
+  .cards { display:grid; gap:18px; }
+  .cards.c3 { grid-template-columns:repeat(3,1fr); }
+  .cards.c4 { grid-template-columns:repeat(4,1fr); }
+  .cards.c2 { grid-template-columns:repeat(2,1fr); }
+  .card { border:1px solid var(--line); border-top:4px solid var(--blue); background:#fff; padding:18px 20px; }
+  .card h3 { font-size:19px; font-weight:800; margin-bottom:8px; }
+  .card .k { font-size:13px; font-weight:700; color:var(--blue-dark); letter-spacing:.06em; margin-bottom:6px; }
+  .card ul { padding-left:18px; font-size:15.5px; line-height:1.6; }
+  .card p { font-size:15.5px; line-height:1.6; }
+
+  table { width:100%; border-collapse:collapse; font-size:15px; }
+  th { background:#E1E5EA; color:var(--ink); border-bottom:2px solid var(--ink); font-weight:700; padding:8px 10px; text-align:left; }
+  td { border-bottom:1px solid var(--line); padding:7px 10px; vertical-align:top; }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  tr.em td { font-weight:700; }
+
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:36px; }
+  .box { background:var(--bg); border:1px solid var(--line); padding:16px 20px; }
+  .box h3 { font-size:17px; font-weight:800; margin-bottom:6px; }
+  .box ul { padding-left:18px; font-size:15px; line-height:1.6; }
+  .warn { background:var(--bg); border:2px solid var(--ink); padding:14px 20px; font-size:15.5px; }
+  .warn b { font-weight:800; }
+
+  /* 막대 차트 */
+  .chart { display:flex; align-items:flex-end; gap:34px; height:250px; border-bottom:1.5px solid var(--ink); padding:0 10px; }
+  .grp { flex:1; display:flex; align-items:flex-end; justify-content:center; gap:6px; height:100%; }
+  .bar { width:44px; border-radius:4px 4px 0 0; position:relative; }
+  .bar span { position:absolute; top:-22px; left:50%; transform:translateX(-50%); font-size:13px; font-weight:700; color:var(--ink); white-space:nowrap; }
+  .bar.a { background:var(--blue); }
+  .bar.b { background:var(--gray-bar); }
+  .xl { display:flex; gap:34px; padding:6px 10px 0; }
+  .xl div { flex:1; text-align:center; font-size:14px; color:var(--sub); }
+  .legend { display:flex; gap:18px; font-size:13px; color:var(--sub); margin-bottom:28px; }
+  .legend i { display:inline-block; width:12px; height:12px; border-radius:2px; margin-right:6px; vertical-align:-1px; }
+
+  /* 흐름도 */
+  .flow { display:flex; align-items:stretch; gap:0; }
+  .flow .node { flex:1; border:1.5px solid var(--ink); background:#fff; padding:16px 18px; }
+  .flow .node.goal { background:var(--blue-soft); border:2px solid var(--blue-dark); }
+  .flow .node .k { font-size:13px; font-weight:800; color:var(--blue-dark); letter-spacing:.08em; margin-bottom:4px; }
+  .flow .node h3 { font-size:18px; font-weight:800; margin-bottom:6px; }
+  .flow .node ul { padding-left:16px; font-size:14.5px; line-height:1.55; }
+  .flow .arrow { width:38px; display:flex; align-items:center; justify-content:center; font-size:26px; color:var(--blue-dark); font-weight:800; }
+
+  /* 간트 */
+  .gantt { font-size:13px; }
+  .g-head, .g-row { display:grid; grid-template-columns:230px 1fr; align-items:center; }
+  .g-row { height:27px; border-bottom:1px solid #E4E7EA; }
+  .g-label { padding-right:10px; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .g-track { position:relative; height:100%; }
+  .g-months { position:relative; height:40px; }
+  .g-months div { position:absolute; top:0; font-size:11.5px; color:var(--sub); text-align:center; }
+  .g-months .yr { font-weight:800; color:var(--ink); font-size:12px; }
+  .g-bar { position:absolute; top:7px; height:13px; border-radius:3px; background:var(--blue); }
+  .g-bar.sub { background:var(--gray-bar); }
+  .g-bar.alt { background:transparent; border:2px dashed var(--blue-dark); }
+  .g-dia { position:absolute; top:6px; width:14px; height:14px; background:var(--ink); transform:translateX(-7px) rotate(45deg); }
+  .g-grid { position:absolute; top:0; bottom:0; border-left:1px solid #EEF0F2; }
+  .g-grid.y { border-left:1.5px solid var(--line); }
+</style>
+</head>
+<body>
+
+<!-- 1. 표지 -->
+<section class="slide cover">
+  <div class="kicker">PROPOSAL · 중진공 시설자금 활용</div>
+  <h1>(주)커스텀커피<br>사옥 신축 제안</h1>
+  <div><span class="draft">초안 · 자기자금 확인 전</span></div>
+  <div class="meta">2026. 10. &nbsp;|&nbsp; <b>오병석 대표님</b></div>
+</section>
+
+<!-- 2. SUMMARY -->
+<section class="slide core">
+  <div class="tag">SUMMARY</div>
+  <h2>커스텀커피 명의로 경기 남부에 사옥을 신축하고, 중진공 시설자금으로 조달하는 것을 제안드립니다</h2>
+  <div class="answer" style="margin:18px 0 24px;">땅은 넓게 확보하고 건물은 제조장·직영매장·직원사무실만 짓습니다. 제조 기능을 커스텀커피로 모아 신청 기업이 사옥 전체를 직접 쓰는 구조를 만듭니다.</div>
+  <div class="cards c3">
+    <div class="card">
+      <div class="k">분석 결과</div>
+      <h3>실질 매출 89억, 제조 28.6억</h3>
+      <ul>
+        <li>사업 전체 매출은 커스텀커피 89.1억(2025)</li>
+        <li>로스팅은 관계사 팩토리가 담당, 연 28.6억 전량 커스텀커피 공급</li>
+        <li>두 법인 고용 45명, 3년 연속 흑자</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="k">핵심 전략</div>
+      <h3>제조 통합 + 인증 선확보</h3>
+      <ul>
+        <li>커스텀커피에 제조업 추가, 사옥에서 직접 로스팅</li>
+        <li>연구소·벤처·메인비즈 확보 후 접수</li>
+        <li>신성장기반자금(혁신성장지원) 시설자금</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="k">안전장치</div>
+      <h3>계약 전 검토, 대안 일정</h3>
+      <ul>
+        <li>토지 계약 전 인허가 사전 검토</li>
+        <li>초과 토지는 자기자금으로 별도 관리</li>
+        <li>매출 확인 후 1월 말(A) 또는 4월(B) 접수</li>
+      </ul>
+    </div>
+  </div>
+  <div class="footer"><span>커스텀커피 사옥 신축 제안서 (초안)</span><span>2</span></div>
+</section>
+
+<!-- 3. 01 기업 개요 -->
+<section class="slide">
+  <div class="tag">01 자료 분석 결과</div>
+  <h2>두 법인은 하나의 사업입니다. 팩토리가 볶고 커스텀커피가 팝니다</h2>
+  <p class="lead">대표와 주요 주주가 같고, 팩토리 매출 전부가 커스텀커피 매입입니다.</p>
+  <table>
+    <tr><th style="width:18%">구분</th><th style="width:41%">(주)커스텀커피 <span class="note">· 신청 주체</span></th><th>(주)커스텀팩토리 <span class="note">· 관계사</span></th></tr>
+    <tr><td>사업자번호 · 개업</td><td>256-81-01595 · 2019.08 (업력 7년 초과)</td><td>659-86-02411 · 2021.07</td></tr>
+    <tr><td>본점</td><td>용인 기흥구 평촌1로7번길 6-1 (임차)</td><td>용인 처인구 포곡읍 석성로888번길 1 (임차)</td></tr>
+    <tr><td>업종</td><td>식품접객(커피·차), 생두·원두·커피기기 도소매, 경영컨설팅</td><td>제조업 (그 외 기타 식료품 제조업)</td></tr>
+    <tr><td>주주</td><td>오병석 30%, 가족 40%, 김영식·김도희·윤성 각 10%</td><td>오병석 70%, 김영식·김도희·윤성 각 10%</td></tr>
+    <tr class="em"><td>2025 매출</td><td>89.1억</td><td>28.6억 (전량 커스텀커피 공급)</td></tr>
+    <tr><td>인원 (4대보험)</td><td>38명</td><td>7명</td></tr>
+    <tr><td>사업장 · 설비</td><td>매장 5곳(광명·포곡·경찰청·명동·상하동), 기계장치 6.1억(팩토리 공장 설치)</td><td>로스팅 공장, 기계장치 9.0억(취득가)</td></tr>
+    <tr><td>인증</td><td colspan="2">두 법인 모두 없음 (벤처·연구소·메인비즈) · 커스텀커피 특허 1건, 상표 보유</td></tr>
+  </table>
+  <div class="footer"><span>출처: 사업자등록증, 법인등기부, 주주명부, 표준재무제표증명(2025), 4대보험 가입자명부(2026.10)</span><span>3</span></div>
+</section>
+
+<!-- 4. 01 매출·이익 -->
+<section class="slide">
+  <div class="tag">01 자료 분석 결과</div>
+  <h2>매출은 2025년에 줄었지만, 두 법인 모두 3년 연속 흑자입니다</h2>
+  <div class="two" style="margin-top:12px;">
+    <div>
+      <h3 style="font-size:17px; margin-bottom:6px;">매출액 (억 원)</h3>
+      <div class="legend"><span><i style="background:var(--blue)"></i>커스텀커피</span><span><i style="background:var(--gray-bar)"></i>팩토리 (내부거래)</span></div>
+      <div class="chart" id="revChart"></div>
+      <div class="xl"><div>2023</div><div>2024</div><div>2025</div></div>
+    </div>
+    <div>
+      <h3 style="font-size:17px; margin-bottom:6px;">영업이익 (억 원)</h3>
+      <div class="legend"><span><i style="background:var(--blue)"></i>커스텀커피</span><span><i style="background:var(--gray-bar)"></i>팩토리</span></div>
+      <div class="chart" id="opChart"></div>
+      <div class="xl"><div>2023</div><div>2024</div><div>2025</div></div>
+    </div>
+  </div>
+  <div class="warn" style="margin-top:22px;"><b>두 법인 매출은 더하지 않습니다.</b> 팩토리 매출 28.6억은 커스텀커피 매입원가 안에 들어 있는 내부거래입니다. 실질 매출은 커스텀커피 89.1억입니다. 2026년 상반기는 커스텀커피 36.1억, 팩토리 13.5억입니다(부가세 과세표준).</div>
+  <div class="footer"><span>출처: 표준재무제표증명 2023~2025, 부가가치세 과세표준증명(2026.01~06)</span><span>4</span></div>
+</section>
+
+<!-- 5. 01 강점·보완점 -->
+<section class="slide">
+  <div class="tag">01 자료 분석 결과</div>
+  <h2>고용과 설비투자는 강점, 이익률과 부채는 보완할 점입니다</h2>
+  <div class="two" style="margin-top:16px;">
+    <div>
+      <table>
+        <tr><th>지표 (2025)</th><th class="num">커스텀커피</th><th class="num">팩토리</th></tr>
+        <tr><td>영업이익률</td><td class="num">0.8%</td><td class="num">4.1%</td></tr>
+        <tr><td>이자보상배율</td><td class="num">약 1.2배</td><td class="num">12.9배</td></tr>
+        <tr><td>부채비율</td><td class="num">약 245%</td><td class="num">약 203%</td></tr>
+        <tr><td>자산 / 자본</td><td class="num">41.4억 / 12.0억</td><td class="num">14.0억 / 4.6억</td></tr>
+        <tr><td>현금</td><td class="num">5.9억</td><td class="num">0.2억</td></tr>
+        <tr class="em"><td>합산 영업이익</td><td class="num" colspan="2">1.9억 (외부 매출 대비 약 2.1%)</td></tr>
+      </table>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div class="box">
+        <h3>강점</h3>
+        <ul>
+          <li>두 법인 고용 45명, 매장 확장과 함께 증가</li>
+          <li>2025년 설비투자: 기계장치 6.1억, 시설장치 8.7억, 비품 6.1억 (커스텀커피)</li>
+          <li>3년 연속 흑자, 팩토리 이익은 매년 증가</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>보완할 점</h3>
+        <ul>
+          <li>매출 감소: 2024년 105.5억 → 2025년 89.1억 (약 −15%)</li>
+          <li>커스텀커피 이익률·이자보상배율이 낮음</li>
+          <li>인증 없음, 커스텀커피 장부에 제조 매출이 거의 없음</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="footer"><span>출처: 표준재무제표증명 2025 (두 법인)</span><span>5</span></div>
+</section>
+
+<!-- 6. 01 세 가지 판단 -->
+<section class="slide">
+  <div class="tag">01 자료 분석 결과</div>
+  <h2>분석에서 나온 세 가지 판단</h2>
+  <div class="cards c3" style="margin-top:22px;">
+    <div class="card">
+      <div class="k">판단 1</div>
+      <h3>신청 주체는 커스텀커피</h3>
+      <p>팩토리는 자본 4.6억, 매출 28.6억 규모라 신축 대출을 감당하기 어렵습니다. 매출 89억과 현금을 가진 커스텀커피가 신청합니다.</p>
+    </div>
+    <div class="card">
+      <div class="k">판단 2</div>
+      <h3>제조장은 커스텀커피가 직접 운영</h3>
+      <p>제조장을 팩토리가 쓰면 관계사 임대 면적으로 보여 대출에서 빠질 수 있습니다. 커스텀커피에 제조업을 추가하고, 이미 보유한 로스터로 사옥에서 직접 로스팅합니다.</p>
+    </div>
+    <div class="card">
+      <div class="k">판단 3</div>
+      <h3>업종은 신청 가능, 트랙은 신성장기반</h3>
+      <p>중진공 융자제외 업종에서 음식점업은 주점업만 제외됩니다. 커피전문점·도소매는 신청할 수 있습니다. 업력이 7년을 넘어 신성장기반자금으로 신청합니다.</p>
+    </div>
+  </div>
+  <p class="note" style="margin-top:22px;">융자제외 업종 출처: 중소벤처기업진흥공단 융자제외 대상 업종(2026.01.01, 공공데이터포털). 차년도 공고로 최종 확인합니다.</p>
+  <div class="footer"><span>커스텀커피 사옥 신축 제안서 (초안)</span><span>6</span></div>
+</section>
+
+<!-- 7. 02 제안 -->
+<section class="slide core">
+  <div class="tag">02 제안</div>
+  <h2>이렇게 진행하겠습니다</h2>
+  <div class="cards c4" style="margin-top:22px;">
+    <div class="card">
+      <div class="k">01</div>
+      <h3>커스텀커피 명의 신축</h3>
+      <p>경기 남부에 토지를 매입하고 커스텀커피 명의로 사옥을 짓습니다. 과밀억제권역이 아닌 지역을 우선 봅니다.</p>
+    </div>
+    <div class="card">
+      <div class="k">02</div>
+      <h3>제조 기능 통합</h3>
+      <p>제조업 추가와 식품제조가공업 등록으로 사옥에서 직접 로스팅합니다. 팩토리는 완공 전까지 지금처럼 운영합니다.</p>
+    </div>
+    <div class="card">
+      <div class="k">03</div>
+      <h3>땅은 넓게, 건물은 필요한 만큼</h3>
+      <p>제조장·직영매장·직원사무실을 짓고, 남는 땅은 2단계 증축 부지로 계획에 넣습니다.</p>
+    </div>
+    <div class="card">
+      <div class="k">04</div>
+      <h3>인증 먼저, 1월 말 접수</h3>
+      <p>기업부설연구소, 벤처확인, 메인비즈를 확보한 뒤 2027년 1월 말 중진공에 접수합니다.</p>
+    </div>
+  </div>
+  <div class="answer" style="margin-top:26px; font-size:19px;">결론: 장부상 약점인 "제조 흔적 없음"을 사옥 신축으로 제조와 유통을 하나로 묶는 투자 명분으로 바꿉니다.</div>
+  <div class="footer"><span>커스텀커피 사옥 신축 제안서 (초안)</span><span>7</span></div>
+</section>
+
+<!-- 8. 03 자금 구조 -->
+<section class="slide">
+  <div class="tag">03 자금 구조</div>
+  <h2>금액은 자기자금 확인 후 확정하고, 구조부터 잡습니다</h2>
+  <div class="two" style="margin-top:12px; gap:28px;">
+    <div>
+      <h3 style="font-size:16px; margin-bottom:6px;">소요 항목</h3>
+      <table style="font-size:14px;">
+        <tr><th>항목</th><th>내용</th></tr>
+        <tr><td>토지 (필요 면적)</td><td>건축 계획에 쓰이는 부지</td></tr>
+        <tr><td>토지 (초과 면적)</td><td>2단계 증축 부지. 대출 제외 가능성이 큼</td></tr>
+        <tr><td>건축비</td><td>제조장 · 직영매장 · 직원사무실</td></tr>
+        <tr><td>취득세</td><td>토지 약 4.6%, 신축 약 3.2%</td></tr>
+        <tr><td>설계 · 감리 · 인허가</td><td>건축사 · 토목설계</td></tr>
+        <tr><td>토목 · 인입</td><td>진입로, 전기 · 상하수</td></tr>
+        <tr><td>전용부담금</td><td>농지 · 임야인 경우</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3 style="font-size:16px; margin-bottom:6px;">조달 원천</h3>
+      <table style="font-size:14px;">
+        <tr><th>원천</th><th>대상</th><th>금액</th></tr>
+        <tr><td>중진공 신성장기반자금 (시설)</td><td>토지(필요 면적) + 건축</td><td>소요자금의 최대 80% 안팎</td></tr>
+        <tr><td>자기자금</td><td>나머지 + 초과 토지 + 대출 비대상 비용</td><td>상담일지 확인 후 확정</td></tr>
+      </table>
+      <div class="warn" style="margin-top:14px; font-size:14.5px;"><b>땅을 넓힐수록 자기자금이 늘어납니다.</b> 초과 면적은 대출이 나오지 않을 가능성이 크고, 놀리면 비사업용 토지로 분류될 수 있습니다(세무사 확인).</div>
+    </div>
+  </div>
+  <h3 style="font-size:16px; margin:10px 0 6px;">공고 확인 (2026 기준, 차년도 공고로 최종 확인)</h3>
+  <table style="font-size:13.5px;">
+    <tr><th style="width:24%">항목</th><th style="width:40%">2026 기준</th><th>출처</th></tr>
+    <tr><td>기업당 한도</td><td>중진공 대출잔액 포함 60억</td><td>중소벤처기업부 2026년 중소기업 정책자금 융자계획 공고 (공고번호 원문 확인 후 기재)</td></tr>
+    <tr><td>토지구입비 · 건축자금 인정 요건</td><td>건축허가 등 요건, 실행 방식(기성 분할) 확인 필요</td><td>같은 공고 · 중진공 사전 상담</td></tr>
+  </table>
+  <div class="footer"><span>세율은 일반 기준이며 감면 · 중과 여부는 세무사 확인을 전제로 합니다</span><span>8</span></div>
+</section>
+
+<!-- 9. 04 인증·핵심 전략 -->
+<section class="slide">
+  <div class="tag">04 인증 · 핵심 전략</div>
+  <h2>인증과 업종을 먼저 갖추고 접수합니다</h2>
+  <p class="lead">커스텀커피는 인증이 하나도 없습니다. 접수 전에 평가 점수를 올릴 수 있는 것부터 확보합니다.</p>
+  <div class="flow">
+    <div class="node">
+      <div class="k">STEP 1 · 11월</div>
+      <h3>업종 보완</h3>
+      <ul><li>사업자등록에 제조업 추가</li><li>식품제조가공업 등록 요건 확인</li></ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node">
+      <div class="k">STEP 2 · 11월</div>
+      <h3>연구 기반</h3>
+      <ul><li>기업부설연구소 설립</li><li>특허출원 2건 (로스팅 · 블렌딩 등)</li></ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node">
+      <div class="k">STEP 3 · 12~1월</div>
+      <h3>인증</h3>
+      <ul><li>벤처확인 (혁신성장유형)</li><li>메인비즈</li></ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node goal">
+      <div class="k">GOAL · 1월 말</div>
+      <h3>중진공 접수</h3>
+      <ul><li>신성장기반자금 시설자금</li><li>사옥 신축 계획서 첨부</li></ul>
+    </div>
+  </div>
+  <div class="flow" style="margin-top:22px;">
+    <div class="node">
+      <div class="k">TRACK B · 11~1월</div>
+      <h3>후보지 탐색</h3>
+      <ul><li>경기 남부, 과밀억제권역 외</li><li>공장 · 매장을 함께 지을 수 있는 용도지역</li></ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node">
+      <div class="k">TRACK B · 12~2월</div>
+      <h3>인허가 사전 검토</h3>
+      <ul><li>식품제조가공업 등록, 로스터 배출시설</li><li>진입로 · 하수 · 전기 용량</li></ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node goal">
+      <div class="k">GOAL · 승인 후</div>
+      <h3>토지 계약</h3>
+      <ul><li>검토 통과한 부지만 계약</li><li>계약 후 공장 불가 위험 차단</li></ul>
+    </div>
+  </div>
+  <div class="footer"><span>인증 요건과 처리 기간은 각 기관 기준으로 최종 확인합니다</span><span>9</span></div>
+</section>
+
+<!-- 10. 05 추진 일정 -->
+<section class="slide">
+  <div class="tag">05 추진 일정</div>
+  <h2>2027년 1월 말 접수, 2028년 상반기 입주를 목표로 합니다</h2>
+  <div class="gantt" id="gantt" style="margin-top:10px;"></div>
+  <p class="note" style="margin-top:8px;">◆ 확인 · 접수일 &nbsp; ▬ 진행 &nbsp; ┅ 대안(Plan B). Plan B로 가면 이후 일정이 약 2개월 늦어집니다. 인허가 · 공사 기간은 부지 조건에 따라 달라집니다.</p>
+  <div class="footer"><span>커스텀커피 사옥 신축 제안서 (초안)</span><span>10</span></div>
+</section>
+
+<!-- 11. 06 대안 -->
+<section class="slide">
+  <div class="tag">06 대안</div>
+  <h2>1월 25일 매출 확인 결과로 접수 시점을 정합니다</h2>
+  <p class="lead">매출이 줄어든 해의 결산으로 접수하면 불리합니다. 2기 부가세 신고로 2026년 매출을 먼저 봅니다.</p>
+  <div class="flow" style="margin-top:10px;">
+    <div class="node goal">
+      <div class="k">PLAN A</div>
+      <h3>1월 말 접수</h3>
+      <ul><li>2026년 매출이 2025년(89.1억) 이상</li><li>인증 확보 직후 바로 접수</li><li>3~4월 승인 · 토지 계약</li></ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node">
+      <div class="k">IF</div>
+      <h3>2026년 매출이 89.1억 미만</h3>
+      <ul><li>상반기 36.1억, 연환산 약 72억</li><li>하반기 회복이 없으면 미달 가능성이 높음</li></ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="node">
+      <div class="k">PLAN B</div>
+      <h3>4월 접수</h3>
+      <ul><li>3월 법인세 신고로 결산 확정</li><li>매출 감소 사유와 회복 근거를 계획서에 반영</li><li>인증 · 후보지 준비는 그대로 진행</li></ul>
+    </div>
+  </div>
+  <div class="answer" style="margin-top:28px; font-size:18px;">어느 쪽이든 인증 · 업종 보완 · 후보지 검토는 지금 시작합니다. 접수 시점만 바뀝니다.</div>
+  <div class="footer"><span>출처: 부가가치세 과세표준증명(2026.01~06), 표준재무제표증명 2025</span><span>11</span></div>
+</section>
+
+<!-- 12. 07 리스크 대응 -->
+<section class="slide">
+  <div class="tag">07 리스크 대응</div>
+  <h2>예상되는 리스크와 대응 방법입니다</h2>
+  <div style="display:grid; grid-template-columns:2.3fr 1fr; gap:24px; margin-top:12px;">
+    <table style="font-size:14px;">
+      <tr><th style="width:30%">리스크</th><th>대응</th></tr>
+      <tr><td>매출 감소 (−15%)</td><td>Plan B 일정, 매장 확장에 따른 회복 근거 제시</td></tr>
+      <tr><td>낮은 이익률 · 이자보상배율</td><td>관계사 포함 실질 수익력(합산 영업이익 1.9억), 임차료 절감 효과 제시</td></tr>
+      <tr><td>관계사 사용 면적 제외</td><td>제조장을 커스텀커피가 직접 운영. 중진공 사전 상담으로 확인</td></tr>
+      <tr><td>초과 토지</td><td>2단계 증축 계획으로 업무용 근거 확보, 자기자금으로 별도 관리</td></tr>
+      <tr><td>인허가 불가 · 지연</td><td>계약 전 건축사 · 토목 사전 검토, 로스터 배출시설 확인</td></tr>
+      <tr><td>관계사 거래가격</td><td>팩토리 공급가 · 설비 사용료의 적정성 세무사 확인</td></tr>
+      <tr><td>취득세 중과</td><td>과밀억제권역(수원 · 성남 · 안양 등) 외 지역 우선</td></tr>
+      <tr><td>기존 대출 만기</td><td>기업은행 16.3억 · 신한 2억(10/20~21 만기) 연장 결과 확인</td></tr>
+    </table>
+    <div class="card" style="align-self:start;">
+      <div class="k">함께 검토</div>
+      <h3>고용지원금</h3>
+      <p>두 법인 고용 45명이고 매장과 사옥 확장으로 인원이 늘어납니다. 신규 채용에 쓸 수 있는 정부 고용지원금이 있는지 함께 검토합니다.</p>
+      <p class="note" style="margin-top:8px;">요건은 노무사 · 고용센터 확인을 전제로 합니다.</p>
+    </div>
+  </div>
+  <div class="footer"><span>출처: 금융거래확인서(2026.10), 표준재무제표증명 2025</span><span>12</span></div>
+</section>
+
+<!-- 13. 08 대표님 확인 요청 -->
+<section class="slide">
+  <div class="tag">08 대표님 확인 요청</div>
+  <h2>다음 미팅 전에 아래 내용을 확인 부탁드립니다</h2>
+  <div class="two" style="margin-top:16px;">
+    <div class="cards" style="grid-template-columns:1fr; gap:12px;">
+      <div class="card"><h3>자기자금 범위</h3><p>총사업비 상한을 정하는 기준입니다. 법인 현금과 대표님 개인 자금을 나눠 알려주세요.</p></div>
+      <div class="card"><h3>공간 계획 (2차 미팅)</h3><p>제조장 · 직영매장 · 사무실 면적과 희망 부지 규모</p></div>
+      <div class="card"><h3>최근 실적</h3><p>두 법인 2026년 1~9월 매출 · 손익, 기존 대출 연장 결과</p></div>
+    </div>
+    <div class="box" style="background:#fff;">
+      <h3 style="margin-bottom:10px;">다음 단계</h3>
+      <table style="font-size:15px;">
+        <tr><th style="width:44px;">✓</th><th>할 일</th><th>시기</th></tr>
+        <tr><td>☐</td><td>자기자금 확정 → 총사업비 시나리오</td><td>다음 미팅</td></tr>
+        <tr><td>☐</td><td>커스텀커피 제조업 추가</td><td>11월 초</td></tr>
+        <tr><td>☐</td><td>기업부설연구소 · 특허출원 2건</td><td>11월</td></tr>
+        <tr><td>☐</td><td>벤처확인 · 메인비즈</td><td>12~1월</td></tr>
+        <tr><td>☐</td><td>후보지 탐색 · 인허가 사전 검토</td><td>11~2월</td></tr>
+        <tr><td>☐</td><td>중진공 사전 상담 (관계사 면적, 토지 요건)</td><td>12월</td></tr>
+        <tr><td>☐</td><td>2026년 매출 확인 → 접수 시점 결정</td><td>1/25</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="footer"><span>커스텀커피 사옥 신축 제안서 (초안)</span><span>13</span></div>
+</section>
+
+<script>
+  // 매출 · 영업이익 막대
+  function bars(id, data, max) {
+    const el = document.getElementById(id);
+    data.forEach(([a, b]) => {
+      const g = document.createElement('div'); g.className = 'grp';
+      [[a, 'a'], [b, 'b']].forEach(([v, c]) => {
+        const bar = document.createElement('div'); bar.className = 'bar ' + c;
+        bar.style.height = (v / max * 100) + '%';
+        bar.innerHTML = '<span>' + v.toFixed(v < 10 ? 2 : 1) + '</span>';
+        g.appendChild(bar);
+      });
+      el.appendChild(g);
+    });
+  }
+  bars('revChart', [[98.72, 26.74], [105.45, 27.44], [89.09, 28.60]], 115);
+  bars('opChart', [[0.55, 0.50], [0.41, 0.48], [0.72, 1.18]], 1.35);
+
+  // 간트: 0 = 2026년 10월, 21 = 2028년 7월 1일
+  const N = 21;
+  const rows = [
+    ['기존 대출 만기 연장 확인', 0, 0.7, 'sub'],
+    ['업종 보완 (제조업 추가)', 1, 1.6],
+    ['기업부설연구소 · 특허출원', 1, 2],
+    ['벤처확인 · 메인비즈', 2, 3.6],
+    ['후보지 탐색 (경기 남부)', 1, 4, 'sub'],
+    ['인허가 사전 검토', 2, 4.6, 'sub'],
+    ['2026 매출 확인 (1/25)', 3.8, null, 'dia'],
+    ['중진공 접수 Plan A (1/26)', 3.85, null, 'dia'],
+    ['Plan B 접수 (4월)', 6, 7, 'alt'],
+    ['평가 · 실사 · 중진공 사전 상담', 4, 6],
+    ['승인 · 토지 계약 · 잔금', 5.5, 8],
+    ['설계 · 건축 인허가', 7, 12, 'sub'],
+    ['착공 ~ 준공', 12, 19.5],
+    ['이전 · 개점', 19.5, 21],
+  ];
+  const g = document.getElementById('gantt');
+  const pct = m => (m / N * 100) + '%';
+  let head = '<div class="g-head"><div></div><div class="g-months">';
+  for (let i = 0; i < N; i++) {
+    const mon = (9 + i) % 12 + 1, yr = 2026 + Math.floor((9 + i) / 12);
+    const lab = (mon === 1 || i === 0) ? '<span class="yr">' + yr + '</span><br>' + mon + '월' : '<br>' + mon + '월';
+    head += '<div style="left:' + pct(i) + ';width:' + pct(1) + '">' + lab + '</div>';
+  }
+  g.innerHTML = head + '</div></div>';
+  rows.forEach(([label, s, e, t]) => {
+    let grid = '';
+    for (let i = 0; i < N; i++) {
+      const mon = (9 + i) % 12 + 1;
+      grid += '<div class="g-grid' + (mon === 1 ? ' y' : '') + '" style="left:' + pct(i) + '"></div>';
+    }
+    const mark = t === 'dia'
+      ? '<div class="g-dia" style="left:' + pct(s) + '"></div>'
+      : '<div class="g-bar ' + (t || '') + '" style="left:' + pct(s) + ';width:' + pct(e - s) + '"></div>';
+    g.insertAdjacentHTML('beforeend',
+      '<div class="g-row"><div class="g-label">' + label + '</div><div class="g-track">' + grid + mark + '</div></div>');
+  });
+</script>
+</body>
+</html>
