@@ -45,7 +45,9 @@ SYSTEM = """당신은 네이버 블로그 글을 쓰는 작가입니다.
 - 분량은 2,000~3,000자, 인용구 소제목 4~6개를 기준으로 합니다.
 
 사실 정보 규칙 (가장 중요):
-- 가격은 <prices> 의 [판매가격]에 있는 것만, 사양은 [트림별 주요 사양]에 있는 것만 씁니다. <prices> 에 없는 트림의 가격은 쓰지 않습니다.
+- 가격은 <prices> 의 [판매가격]에 있는 것만, 제원(출력, 토크, 크기 등)은 [제원]에 있는 것만, 옵션은 [트림별 주요 사양]에 있는 것만 씁니다. <prices> 에 없는 트림의 가격은 쓰지 않습니다.
+- [제원]의 모델 이름은 엔진 기준입니다. 메모의 트림 이름 앞부분과 맞는 줄의 값만 씁니다. (예: 트림 "X3 20 xDrive M Sport" → [제원]의 "X3 20" 줄). 맞는 줄이 없거나 애매하면 그 값은 쓰지 않습니다.
+- 출고후기와 차량정보 글에는 "차량 주요 사양" 인용구 소제목과 사양 정리를 반드시 넣습니다.
 - 가격은 "판매가격 7,670만원 (26년식, 2026년 10월 기준)"처럼 연식과 기준 월을 붙입니다.
 - 한 트림에 가격이 여러 개면 메모의 연식과 맞는 것을 쓰고, 메모에 없으면 가장 최근 연식의 가장 마지막 생산분(P 숫자가 큰 것) 가격을 씁니다. "P1", "P2" 같은 생산 차수 표기는 글에 쓰지 않습니다.
 - 차량 모델, 색상, 출고 시기는 메모에 있는 것만 씁니다. 사진만 보고 트림이나 색상 이름을 추측하지 않습니다.
@@ -163,6 +165,8 @@ def generate(cfg: dict, folder: Path) -> None:
     if cfg.get("closing"):
         blocks.append(Block("paragraph", cfg["closing"].strip()))
 
+    if post_kind(folder) in ("출고후기", "차량정보") and not any(b.kind == "quote" and "사양" in b.text for b in blocks):
+        print("[주의] 글에 '차량 주요 사양' 부분이 없습니다. 다시 쓰기를 누르거나 직접 넣어주세요.")
     tags = [t.strip().lstrip("#").replace(" ", "") for t in ai.tags]
     write_draft(folder / DRAFT_FILE, Draft(ai.title.strip(), [t for t in tags if t], blocks))
     print(f"[완료] {folder / DRAFT_FILE}  ← 열어서 확인/수정하세요.")
