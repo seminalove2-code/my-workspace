@@ -3,6 +3,7 @@
 사용법:
   python fetch_reference.py <글 주소>                  # 글 하나
   python fetch_reference.py <블로그 주소> [종류] [개수]  # 그 블로그의 최근 글 여러 개 (기본 5개)
+  python fetch_reference.py --list data/recommended_refs.txt  # 목록의 글을 종류별로 모두 (예전 것은 지움)
   예) python fetch_reference.py https://blog.naver.com/hth1890 출고후기 5
      → references/출고후기/ 에 저장
 """
@@ -75,9 +76,38 @@ def save(data: dict, out_dir) -> None:
     print(f"[저장] {path.relative_to(REFERENCES_DIR.parent)}")
 
 
+def fetch_list(list_file: str) -> None:
+    jobs = []
+    for line in open(list_file, encoding="utf-8-sig"):
+        parts = line.split()
+        if len(parts) == 2 and not line.startswith("#"):
+            jobs.append((parts[0], parse_url(parts[1])))
+    for kind in {k for k, _ in jobs}:  # 종류별 예전 레퍼런스 비우기
+        for old in (REFERENCES_DIR / kind).glob("*.txt"):
+            old.unlink()
+    saved = 0
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        page = browser.new_page(locale="ko-KR")
+        for i, (kind, (blog_id, log_no)) in enumerate(jobs, 1):
+            print(f"({i}/{len(jobs)}) {kind}: ", end="", flush=True)
+            try:
+                page.goto(f"https://m.blog.naver.com/{blog_id}/{log_no}")
+                page.wait_for_selector(".se-main-container", timeout=20000)
+                save(page.evaluate(EXTRACT_JS), REFERENCES_DIR / kind)
+                saved += 1
+            except Exception as e:
+                print(f"[건너뜀] {blog_id}/{log_no}: {str(e)[:80]}")
+        browser.close()
+    print(f"\n완료: {len(jobs)}개 중 {saved}개 저장")
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         sys.exit(__doc__)
+    if sys.argv[1] == "--list":
+        fetch_list(sys.argv[2])
+        return
     blog_id, log_no = parse_url(sys.argv[1].strip())
     kind = sys.argv[2].strip() if len(sys.argv) > 2 else ""
     count = int(sys.argv[3]) if len(sys.argv) > 3 else 5
