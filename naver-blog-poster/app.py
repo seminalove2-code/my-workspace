@@ -269,6 +269,15 @@ def add_cards_only(folder, title, tags, blocks):
     return opened(folder)
 
 
+def new_tables(folder, title, tags, blocks):
+    if not folder or generate.post_kind(Path(folder)) != guide.KIND:
+        raise gr.Error("총정리 글에서만 쓸 수 있어요.")
+    store(folder, title, tags, blocks)
+    n = guide.refresh_tables(Path(folder))
+    gr.Info(f"제원표 {n}개를 새로 넣었어요. 본문은 그대로예요." if n else "뽑아 둔 제원표가 없어요. [총정리 글] 탭에서 PDF로 다시 뽑아주세요.")
+    return opened(Path(folder))
+
+
 def upload_to_naver(folder, title, tags, blocks):
     store(folder, title, tags, blocks)
     folder = Path(folder)
@@ -579,6 +588,7 @@ def build() -> gr.Blocks:
                             with gr.Row():
                                 redo_btn = gr.Button("🔄 AI가 처음부터 다시 쓰기")
                                 cards_btn = gr.Button("🖼 썸네일·스펙 카드만 넣기")
+                                tables_btn = gr.Button("📊 제원표만 새로 넣기 (총정리)")
                             thumb_pos = gr.Slider(0, 100, value=75, step=5, label="썸네일 사진 위치 (작게: 위쪽 · 크게: 아래쪽)")
                             log = gr.Textbox(label="진행 기록", lines=6, interactive=False)
 
@@ -587,6 +597,7 @@ def build() -> gr.Blocks:
                 make_btn.click(make_post, [kind, trim, ext_color, int_color, story, photos, already], OPEN)
                 redo_btn.click(rewrite, folder, OPEN)
                 cards_btn.click(add_cards_only, [folder, title, tags, blocks], OPEN)
+                tables_btn.click(new_tables, [folder, title, tags, blocks], OPEN)
                 for box in (title, tags):
                     box.blur(lambda f, t, g, b: store(f, t, g, b) if f else None, [folder, title, tags, blocks], None)
                 add_btn.click(add_photo, [folder, title, tags, blocks, unused_dd], [blocks, ver, unused_dd])

@@ -23,7 +23,7 @@ from generate import DATA_DIR, GUIDE_DIR, KEYWORD_FILE, PRICE_FILE, matching_ser
 
 ASSET_DIR = DATA_DIR / "차종사진"          # PDF 에서 뽑은 사진 (딜러 자료라 저장소에 올리지 않음)
 BOOK_FILE = DATA_DIR / "Approach_Book.pdf"  # 한 번 올린 PDF 를 보관해 두고 필요할 때 프로그램이 다시 읽는다
-EXTRACT_VERSION = 2  # 뽑는 방식이 바뀌면 올림 → 보관해 둔 PDF 로 저절로 다시 뽑는다 (2: 제원표 추가)
+EXTRACT_VERSION = 3  # 뽑는 방식이 바뀌면 올림 → 보관해 둔 PDF 로 저절로 다시 뽑는다 (2: 제원표 추가, 3: 두 줄 항목 이름)
 THUMB_DIR = DATA_DIR / "총정리_썸네일"     # 차종별 썸네일로 쓸 실제 사진 (있으면 PDF 사진 대신)
 ORDER_FILE = DATA_DIR / "총정리_순서.txt"
 RECORD_FILE = DATA_DIR / "총정리_기록.json"
@@ -150,9 +150,14 @@ def spec_table(lines: list) -> dict | None:
     labels = [(r, t) for r, t in body if r.x0 >= 40 and r.x1 <= 145]
     if not labels:
         return None
-    merged = []  # '(시내 / 고속)' 처럼 '(' 로 시작하는 줄은 바로 위 항목에 붙인다
+    values = [r for r, _ in body if r.x0 >= 140]
+
+    def own_row(r) -> bool:  # 이 줄 높이에 딱 맞춘 값이 있으면 따로인 항목
+        return any(abs(_cy(v) - _cy(r)) < 3 for v in values)
+
+    merged = []  # 한 칸에 두 줄로 쓴 항목 이름('CO2' / '배출량(g/km)', '(시내 / 고속)')은 합친다
     for r, t in sorted(labels, key=lambda x: x[0].y0):
-        if t.startswith("(") and merged:
+        if merged and (t.startswith("(") or (r.y0 - merged[-1][0].y1 < 6 and not own_row(r) and not own_row(merged[-1][0]))):
             merged[-1] = (merged[-1][0] | r, merged[-1][1] + " " + t)
         else:
             merged.append((r, t))
@@ -167,10 +172,18 @@ def spec_table(lines: list) -> dict | None:
     if len(cols) < 1:
         return None
     centers = [c for c, _ in cols]
+    # 값 줄은 세로로 가장 가까운 항목 하나에만 붙인다 (줄 간격이 좁은 표에서 옆 줄 값을 같이 가져가지 않게)
+    owner: dict[int, list] = {}
+    for r, t in body:
+        if r.x0 >= 140 and r.y0 > top - 2 and (r, t) not in heads:
+            k = min(range(len(merged)), key=lambda n: abs(_cy(merged[n][0]) - _cy(r)))
+            if abs(_cy(merged[k][0]) - _cy(r)) <= 12:
+                owner.setdefault(k, []).append((r, t))
     rows = []
-    for lr, label in merged:
-        vals = sorted(((r, t) for r, t in body if r.x0 >= 140 and r.y0 > top - 2
-                       and abs(_cy(r) - _cy(lr)) <= 9 and (r, t) not in heads), key=lambda x: _cx(x[0]))
+    for n, (lr, label) in enumerate(merged):
+        if "타이어" in label:  # 칸마다 여러 줄이라 모델별로 정확히 나누기 어려워 뺀다
+            continue
+        vals = sorted(owner.get(n, []), key=lambda x: _cx(x[0]))
         stacked: list[list] = []  # 한 칸에 두 줄로 쓴 값 (타이어 규격 등)
         for r, t in sorted(vals, key=lambda x: x[0].y0):
             hit = next((s for s in stacked if abs(s[0] - _cx(r)) < 20), None)
@@ -530,6 +543,21 @@ def make(cfg: dict, series: str, log=print) -> Path | None:
     write_draft(folder / DRAFT_FILE, Draft(ai.title.strip(), [t for t in tags if t], blocks))
     log(f"[완료] {folder / DRAFT_FILE}")
     return folder
+
+
+def refresh_tables(folder: Path) -> int:
+    """이미 만든 총정리 글의 제원표(표 블록)만 지금 뽑아 둔 제원표로 바꾼다. 본문은 그대로."""
+    from common import read_draft
+    d = assets(series_of(folder))
+    draft = read_draft(folder / DRAFT_FILE)
+    tables = spec_tables(d)
+    at = next((i for i, b in enumerate(draft.blocks) if b.kind == "table"), None)
+    blocks = [b for b in draft.blocks if b.kind != "table"]
+    if at is None:
+        at = next((i + 1 for i, b in enumerate(blocks) if b.kind == "quote" and "제원" in b.text), len(blocks))
+    blocks[at:at] = [Block("table", t) for t in tables]
+    write_draft(folder / DRAFT_FILE, Draft(draft.title, draft.tags, blocks))
+    return len(tables)
 
 
 # ── 3) 순서와 기록 ──
