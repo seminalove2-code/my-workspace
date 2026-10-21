@@ -11,6 +11,7 @@ pip install -r requirements.txt
 echo [3/3] 브라우저 설치 중...
 python -m playwright install chromium
 if not exist .env copy .env.example .env >nul
+python make_shortcut.py
 echo.
-echo 설치 완료! .env 파일을 메모장으로 열어 API 키를 넣고, config.yaml 에 블로그 아이디를 넣으세요.
+echo 설치 완료! 바탕화면의 [BMW 블로그] 아이콘으로 프로그램을 여세요.
 pause

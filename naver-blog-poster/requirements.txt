@@ -6,3 +6,4 @@ pyyaml
 python-dotenv
 pillow
 playwright
+gradio>=6.30.0

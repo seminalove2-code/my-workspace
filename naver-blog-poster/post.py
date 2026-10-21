@@ -176,7 +176,7 @@ def post_one(page: Page, cfg: dict, folder: Path, test: bool) -> None:
         pass
     page.wait_for_load_state("domcontentloaded")
     if "nid.naver.com" in page.url:
-        sys.exit("로그인이 풀렸습니다. login.bat 을 다시 실행하세요.")
+        raise RuntimeError("네이버 로그인이 풀렸습니다. 다시 로그인해 주세요.")
 
     ed = page.frame_locator(SEL["editor_frame"])
     ed.locator(SEL["title"]).first.wait_for(timeout=30000)
@@ -221,19 +221,28 @@ def main() -> None:
         print("올릴 글이 없습니다. (draft.md 가 있고 posted.txt 가 없는 폴더를 올립니다)")
         return
 
+    run_posts(cfg, folders, test)
+
+
+def run_posts(cfg: dict, folders: list[Path], test: bool = False) -> int:
+    """글 폴더들을 차례로 올리고, 성공한 개수를 돌려준다."""
+    done = 0
     with sync_playwright() as pw:
         ctx = open_browser(pw, cfg, headless=False if test else None)
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
-        for folder in folders:
+        for i, folder in enumerate(folders):
             try:
                 post_one(page, cfg, folder, test)
+                done += 1
             except Exception as e:  # 한 글이 실패해도 다음 글은 계속
                 shot = ROOT / "logs" / f"error_{datetime.now():%Y%m%d_%H%M%S}.png"
                 shot.parent.mkdir(exist_ok=True)
                 page.screenshot(path=str(shot), full_page=True)
                 print(f"[실패] {folder.name}: {e}\n  화면 캡처: {shot}")
-            pause(5, 10)
+            if i < len(folders) - 1:
+                pause(5, 10)
         ctx.close()
+    return done
 
 
 if __name__ == "__main__":
