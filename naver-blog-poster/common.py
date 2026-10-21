@@ -18,6 +18,7 @@ POSTED_FILE = "posted.txt"
 BLUR_DIR = "가림"  # 번호판을 가린 사진이 저장되는 하위 폴더
 CARD_DIR = "_card"  # 스펙 카드 이미지와 값
 CARD_FILE = "spec_card.png"
+THUMB_FILE = "thumbnail.png"
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
 # Windows 콘솔에서 한글이 깨지지 않게
@@ -44,8 +45,8 @@ def needs_blur(cfg: dict, folder: Path) -> bool:
 
 def upload_image(cfg: dict, folder: Path, name: str) -> Path | None:
     """블로그에 올릴 사진. 자동 가리기를 하는 글은 가린 사본만 쓴다."""
-    if name == CARD_FILE:
-        p = folder / CARD_DIR / CARD_FILE
+    if name in (CARD_FILE, THUMB_FILE):
+        p = folder / CARD_DIR / name
         return p if p.exists() else None
     if needs_blur(cfg, folder):
         p = folder / BLUR_DIR / name

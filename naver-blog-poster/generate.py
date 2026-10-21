@@ -16,7 +16,7 @@ import blur
 import card
 
 from common import (DRAFT_FILE, REFERENCE_FILE, REFERENCES_DIR, ROOT, TOPIC_FILE,
-                    Block, Draft, list_images, needs_blur, upload_image, CARD_FILE, load_config, post_folders, post_kind,
+                    Block, Draft, list_images, needs_blur, upload_image, CARD_FILE, THUMB_FILE, load_config, post_folders, post_kind,
                     resolve_folder, write_draft)
 
 MAX_SIDE = 1568  # API로 보낼 때만 줄임. 블로그에는 원본이 올라감.
@@ -51,7 +51,7 @@ SYSTEM = """당신은 네이버 블로그 글을 쓰는 작가입니다.
 - 출고후기와 차량정보 글에는 "차량 주요 사양" 인용구 소제목과 사양 정리를 반드시 넣습니다.
 - card 에는 스펙 카드 이미지에 들어갈 값을 넣습니다. 규칙은 본문과 같아서 <prices> 와 메모에 있는 값만 쓰고, 모르면 "" 로 둡니다.
   price 는 만원 단위 숫자만(예: 7,610), power/torque/zero100/top_speed 는 숫자만, options 는 고객이 체감하는 옵션 6~8개를 각 12자 안팎으로 씁니다.
-  카드 이미지는 프로그램이 "차량 주요 사양" 소제목 바로 아래에 넣으므로 blocks 에는 넣지 마세요.
+  카드 이미지와 썸네일은 프로그램이 넣으므로 blocks 에는 넣지 마세요. 첫 블록은 사진이 아니라 인사말 문단으로 시작하세요.
 - 가격은 "판매가격 7,670만원 (26년식, 2026년 10월 기준)"처럼 연식과 기준 월을 붙입니다.
 - 한 트림에 가격이 여러 개면 메모의 연식과 맞는 것을 쓰고, 메모에 없으면 가장 최근 연식의 가장 마지막 생산분(P 숫자가 큰 것) 가격을 씁니다. "P1", "P2" 같은 생산 차수 표기는 글에 쓰지 않습니다.
 - 차량 모델, 색상, 출고 시기는 메모에 있는 것만 씁니다. 사진만 보고 트림이나 색상 이름을 추측하지 않습니다.
@@ -165,13 +165,14 @@ def generate(cfg: dict, folder: Path) -> None:
               if b.kind != "image" or b.text.strip() in names]
     used = {b.text for b in blocks if b.kind == "image"}
     blocks += [Block("image", n) for n in sorted(names - used)]
-    # 스펙 카드: '차량 주요 사양' 소제목 바로 아래에 넣는다 (없으면 마무리 앞)
+    # 스펙 카드는 '차량 주요 사양' 소제목 바로 아래(없으면 마무리 앞), 썸네일은 맨 처음
     if post_kind(folder) in ("출고후기", "차량정보"):
         try:
-            card.save_card_data(folder, ai.card.model_dump())
+            card.save_card_data(folder, {**ai.card.model_dump(), "kind": post_kind(folder)})
             if card.render(folder, cfg):
                 at = next((i + 1 for i, b in enumerate(blocks) if b.kind == "quote" and "사양" in b.text), len(blocks))
                 blocks.insert(at, Block("image", CARD_FILE))
+                blocks.insert(0, Block("image", THUMB_FILE))  # 썸네일은 글 맨 처음 (네이버 검색 대표 사진)
         except Exception as e:  # 카드가 실패해도 글은 쓴다
             print(f"[주의] 스펙 카드를 만들지 못했습니다: {e}")
     # 상담 안내는 AI가 아니라 설정 그대로 붙인다 (연락처 오타 방지)

@@ -194,15 +194,15 @@ def replace_photo(folder, selected, new_file):
     return gallery_items(folder, cfg), None
 
 
-def use_for_card(folder, selected, text):
+def use_for_card(folder, selected, text, which="photo"):
     if not folder or not selected:
         raise gr.Error("위 사진 목록에서 카드에 넣을 사진을 먼저 클릭하세요.")
     folder = Path(folder)
     if not card.load_card_data(folder):
         raise gr.Error("이 글에는 스펙 카드가 없습니다. (출고후기·차량정보 글에만 만들어요)")
-    card.set_card_photo(folder, selected)
+    card.set_card_photo(folder, selected, which)
     card.render(folder)
-    gr.Info(f"스펙 카드 사진을 {selected}(으)로 바꿨습니다.")
+    gr.Info(f"{'썸네일' if which == 'thumb_photo' else '스펙 카드'} 사진을 {selected}(으)로 바꿨습니다.")
     return preview_md(str(folder), text)
 
 
@@ -362,6 +362,7 @@ def build() -> gr.Blocks:
                     sel_note = gr.Markdown("")
                     new_photo = gr.File(label="바꿔 넣을 사진", file_types=["image"], type="filepath")
                     swap_btn = gr.Button("선택한 사진 바꾸기")
+                    thumb_btn = gr.Button("🖼️ 이 사진을 썸네일에 쓰기")
                     card_btn = gr.Button("🪪 이 사진을 스펙 카드에 쓰기")
                 with gr.Row():
                     editor = gr.Textbox(label="글 (여기서 바로 고칠 수 있어요)", lines=28)
@@ -381,6 +382,7 @@ def build() -> gr.Blocks:
                 gallery.select(on_select, folder, [selected, sel_note])
                 swap_btn.click(replace_photo, [folder, selected, new_photo], [gallery, new_photo])
                 card_btn.click(use_for_card, [folder, selected, editor], preview)
+                thumb_btn.click(lambda f, n, t: use_for_card(f, n, t, "thumb_photo"), [folder, selected, editor], preview)
                 upload_btn.click(upload_to_naver, [folder, editor], log)
 
             with gr.Tab("지난 글", id="history"):

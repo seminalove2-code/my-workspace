@@ -8,7 +8,7 @@ from pathlib import Path
 
 from playwright.sync_api import sync_playwright
 
-from common import CARD_DIR, CARD_FILE, list_images, load_config, upload_image
+from common import CARD_DIR, CARD_FILE, THUMB_FILE, list_images, load_config, upload_image
 
 CSS = """
 *{box-sizing:border-box;margin:0;padding:0}
@@ -41,6 +41,26 @@ h1.long{font-size:58px}
 .foot b{font-size:28px}.foot p{font-size:22px;color:#c9d6ea;margin-top:4px}
 .tag{text-align:right;font-size:22px;color:#9fb6d9;line-height:1.5}
 """
+
+
+THUMB_CSS = """
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1080px;height:1080px;overflow:hidden;font-family:'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+ color:#fff;position:relative;background:#0b1d3a}
+.bg{position:absolute;inset:0;background:#33455f center/cover no-repeat}
+.shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(6,18,40,.92) 0%,rgba(6,18,40,.62) 34%,
+ rgba(6,18,40,0) 58%,rgba(6,18,40,0) 78%,rgba(6,18,40,.7) 100%)}
+.stripe{display:flex;gap:6px}.stripe i{width:44px;height:8px;border-radius:2px}
+.s1{background:#7fb6ff}.s2{background:#1c4bb4}.s3{background:#e4242e}
+.box{position:absolute;left:72px;top:70px;right:72px}
+.chip{display:inline-block;margin-top:26px;padding:8px 18px;border:1.5px solid rgba(255,255,255,.55);border-radius:999px;font-size:24px;font-weight:500}
+h1{font-size:112px;font-weight:900;line-height:1.02;letter-spacing:-2px;margin-top:22px}
+h1.long{font-size:84px}
+h2{font-size:84px;font-weight:900;color:#7fb6ff;line-height:1.1;letter-spacing:-1px}
+.bottom{position:absolute;left:72px;right:72px;bottom:58px;display:flex;justify-content:space-between;align-items:flex-end;font-size:28px;font-weight:500}
+.bottom b{font-size:30px}
+"""
+KIND_LABEL = {"출고후기": "출고 후기", "차량정보": "실차 리뷰", "프로모션": "프로모션", "상담견적": "구매 상담"}
 
 
 def _e(text: str) -> str:
@@ -79,11 +99,25 @@ def build_html(card: dict, photo: Path | None, cfg: dict) -> str:
 <div class="tag">{tag}</div></div></body></html>"""
 
 
+def build_thumb_html(card: dict, photo: Path | None, kind: str, cfg: dict) -> str:
+    model = _e(card.get("model"))
+    label = _e(card.get("thumb_label") or KIND_LABEL.get(kind, ""))
+    who = _e(cfg.get("thumb_who", "용산 BMW · 최현정 대리"))
+    bottom_left = _e(card.get("colors")).replace(" / ", " · ")
+    photo_css = f"background-image:url('{photo.resolve().as_uri()}')" if photo else ""
+    return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>{THUMB_CSS}</style></head><body><div class="bg" style="{photo_css}"></div><div class="shade"></div>
+<div class="box"><div class="stripe"><i class="s1"></i><i class="s2"></i><i class="s3"></i></div>
+<div class="chip">{who}</div><h1 class="{'long' if len(model) > 14 else ''}">{model}</h1><h2>{label}</h2></div>
+<div class="bottom"><span>{bottom_left}</span><b>{_e(card.get("year"))}</b></div></body></html>"""
+
+
 def save_card_data(folder: Path, card: dict) -> None:
     d = folder / CARD_DIR
     d.mkdir(exist_ok=True)
     old = load_card_data(folder)
-    card = {**card, "photo": old.get("photo", "")}
+    card = {**card, "photo": old.get("photo", ""), "thumb_photo": old.get("thumb_photo", "")}
     (d / "card.json").write_text(json.dumps(card, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
@@ -92,32 +126,45 @@ def load_card_data(folder: Path) -> dict:
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
 
 
-def set_card_photo(folder: Path, name: str) -> None:
+def set_card_photo(folder: Path, name: str, which: str = "photo") -> None:
+    """which: 'photo' = 스펙 카드 사진, 'thumb_photo' = 썸네일 사진"""
     card = load_card_data(folder)
-    card["photo"] = name
+    card[which] = name
     (folder / CARD_DIR / "card.json").write_text(json.dumps(card, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
-def render(folder: Path, cfg: dict | None = None) -> Path | None:
-    """card.json 으로 카드 이미지를 다시 그린다. 사진은 고른 것, 없으면 첫 사진(번호판 가린 사본)."""
+def _shot(pages: list[tuple[str, Path, int]]) -> None:
+    """(html, 저장할 png, 높이) 목록을 한 번에 사진으로 찍는다."""
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(headless=True)
+        for page_html, out, height in pages:
+            src = out.with_suffix(".html")
+            src.write_text(page_html, encoding="utf-8")
+            page = browser.new_page(viewport={"width": 1080, "height": height})
+            page.goto(src.resolve().as_uri())
+            try:
+                page.wait_for_load_state("networkidle", timeout=8000)  # 글꼴 받기 (인터넷 없으면 맑은 고딕)
+            except Exception:
+                pass
+            page.screenshot(path=str(out))
+            page.close()
+        browser.close()
+
+
+def _pick(folder: Path, cfg: dict, chosen: str) -> Path | None:
+    names = [p.name for p in list_images(folder)]
+    name = chosen if chosen in names else (names[0] if names else "")
+    return upload_image(cfg, folder, name) if name else None
+
+
+def render(folder: Path, cfg: dict | None = None, kind: str = "") -> Path | None:
+    """card.json 으로 스펙 카드와 썸네일을 다시 그린다. 사진은 고른 것, 없으면 첫 사진(번호판 가린 사본)."""
     cfg = cfg or load_config()
     card = load_card_data(folder)
     if not card:
         return None
-    names = [p.name for p in list_images(folder)]
-    name = card.get("photo") if card.get("photo") in names else (names[0] if names else "")
-    photo = upload_image(cfg, folder, name) if name else None
-    page_html = folder / CARD_DIR / "card.html"
-    page_html.write_text(build_html(card, photo, cfg), encoding="utf-8")
-    out = folder / CARD_DIR / CARD_FILE
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
-        page = browser.new_page(viewport={"width": 1080, "height": 1350})
-        page.goto(page_html.resolve().as_uri())
-        try:
-            page.wait_for_load_state("networkidle", timeout=8000)  # 글꼴 받기 (인터넷 없으면 맑은 고딕)
-        except Exception:
-            pass
-        page.screenshot(path=str(out))
-        browser.close()
-    return out
+    kind = kind or card.get("kind", "")
+    d = folder / CARD_DIR
+    _shot([(build_html(card, _pick(folder, cfg, card.get("photo", "")), cfg), d / CARD_FILE, 1350),
+           (build_thumb_html(card, _pick(folder, cfg, card.get("thumb_photo", "")), kind, cfg), d / THUMB_FILE, 1080)])
+    return d / CARD_FILE
