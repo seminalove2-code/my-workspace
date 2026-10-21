@@ -105,9 +105,10 @@ def build_thumb_html(card: dict, photo: Path | None, kind: str, cfg: dict) -> st
         small = _e(KIND_LABEL[kind])
     size = 92 if len(big) <= 14 else max(56, int(92 * 14 / len(big)))
     pos = card.get("thumb_pos", 75)
-    # contain: 흰 배경 차 사진(총정리 글)을 자르지 않고 가운데에 크게 놓는다
-    fit = ("background-size:96% auto;background-position:center 60%;background-color:#fff"
-           if card.get("thumb_fit") == "contain" else f"background-position:center {pos}%")
+    # 총정리 글: contain = 흰 배경 차 사진을 자르지 않고 가운데에, band = 가로로 긴 대표 사진을 가운데 띠로
+    fit = {"contain": "background-size:96% auto;background-position:center 60%;background-color:#fff",
+           "band": "background-size:100% auto;background-position:center 54%;background-color:#0b1d3a",
+           }.get(card.get("thumb_fit"), f"background-position:center {pos}%")
     photo_css = f"background-image:url('{photo.resolve().as_uri()}');{fit}" if photo else ""
     top1 = cfg.get("thumb_top1", "BMW <span>한독모터스</span>")
     top2 = _e(cfg.get("thumb_top2", "용산 최현정대리"))

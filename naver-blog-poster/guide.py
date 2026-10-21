@@ -132,8 +132,13 @@ def extract(pdf: str | Path, log=print) -> dict[str, int]:
     if ASSET_DIR.exists():
         shutil.rmtree(ASSET_DIR)
     data: dict[str, dict] = {}
+    banner = None  # 가장 최근에 본 '페이지 맨 위 가로 사진' (차종 소개 페이지의 대표 사진 → 썸네일)
     for pno, page in enumerate(doc):
         if "참고를 위한 이미지" not in page.get_text():
+            for im in page.get_images(full=True):
+                for r in page.get_image_rects(im[0]):
+                    if r.y0 <= 5 and r.width >= page.rect.width * .95 and r.height >= page.rect.height * .2:
+                        banner = (pno, im[0], im[1])
             continue
         lines = [(pymupdf.Rect(l["bbox"]), "".join(s["text"] for s in l["spans"]).strip())
                  for b in page.get_text("dict")["blocks"] for l in b.get("lines", [])]
@@ -178,7 +183,11 @@ def extract(pdf: str | Path, log=print) -> dict[str, int]:
                 _png(doc, xref, smask).save(folder / file)
                 group[kind].append({**item, "file": file})
         if any(group[k] for k in ("exterior", "seats", "wheels")):
-            data.setdefault(series, {"series": series, "groups": []})["groups"].append(group)
+            d = data.setdefault(series, {"series": series, "groups": []})
+            d["groups"].append(group)
+            if banner and not d.get("hero") and pno - banner[0] <= 8:  # 색상 페이지 바로 앞 소개 페이지의 사진
+                _png(doc, banner[1], banner[2]).save(folder / "hero.png")
+                d["hero"] = "hero.png"
             g = group
             log(f"  {pno + 1}쪽 {series} ({g['title']}): 외장 {len(g['exterior'])} · 시트 {len(g['seats'])} · 휠 {len(g['wheels'])}")
     for series, d in data.items():
@@ -196,6 +205,8 @@ def assets(series: str) -> dict:
 def review_items(series: str) -> list[tuple[str, str]]:
     """확인 화면용 (사진, 설명) 목록"""
     d, out = assets(series), []
+    if d.get("hero"):
+        out.append((str(ASSET_DIR / safe(series) / d["hero"]), "썸네일 사진 (차종 소개 페이지)"))
     for g in d.get("groups", []):
         for kind, label in (("exterior", "외장"), ("seats", "시트"), ("wheels", "휠")):
             for it in g[kind]:
@@ -328,12 +339,16 @@ def render_cards(cfg: dict, series: str, folder: Path, section: str, d: dict) ->
     if any(g["seats"] or g["wheels"] for g in d.get("groups", [])):
         pages.append((interior_html(series, d, cfg), folder / INTERIOR_CARD, 1080))
         images.append((INTERIOR_CARD, "시트 색상과 휠 카드"))
-    # 썸네일: 실제 사진이 있으면 그걸, 없으면 PDF 의 첫 외장 색상 사진
+    # 썸네일 사진: 직접 넣은 실제 사진 > PDF 차종 소개 페이지의 대표 사진 > PDF 첫 외장 색상 사진
     real = next((p for p in THUMB_DIR.glob(f"{safe(series)}.*")), None) if THUMB_DIR.exists() else None
     first = next((g["exterior"][0] for g in d.get("groups", []) if g["exterior"]), None)
-    photo = real or (ASSET_DIR / safe(series) / first["file"] if first else None)
-    thumb = {"thumb_title": f"BMW {kname(series)} 총정리", "colors": "색상 · 트림 · 가격", "thumb_pos": 75,
-             "thumb_fit": "" if real else "contain"}
+    if real:
+        photo, fit = real, ""
+    elif d.get("hero"):
+        photo, fit = ASSET_DIR / safe(series) / d["hero"], "band"
+    else:
+        photo, fit = (ASSET_DIR / safe(series) / first["file"] if first else None), "contain"
+    thumb = {"thumb_title": f"BMW {kname(series)} 총정리", "colors": "색상 · 트림 · 가격", "thumb_pos": 75, "thumb_fit": fit}
     (folder / CARD_DIR).mkdir(exist_ok=True)
     pages.append((card.build_thumb_html(thumb, photo, "출고후기", cfg), folder / CARD_DIR / THUMB_FILE, 1080))
     card._shot(pages)
