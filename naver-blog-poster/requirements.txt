@@ -7,3 +7,4 @@ python-dotenv
 pillow
 playwright
 gradio>=6.30.0
+pymupdf

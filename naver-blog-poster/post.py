@@ -167,7 +167,11 @@ def open_publish_layer(ed: FrameLocator, category: str, tags: list[str]) -> None
 def post_one(page: Page, cfg: dict, folder: Path, test: bool) -> None:
     draft = read_draft(folder / DRAFT_FILE)
     kind = post_kind(folder) if (folder / TOPIC_FILE).exists() else ""
-    category = ((cfg.get("categories") or {}).get(kind) or cfg.get("category") or "").strip()
+    cats = cfg.get("categories") or {}
+    category = (cats.get(kind) or (cats.get("차량정보") if kind == "총정리" else "") or cfg.get("category") or "").strip()
+    if kind == "총정리":  # 총정리 글은 처음 몇 편만 임시저장하고 그 뒤로는 바로 발행 (guide.publish_now)
+        import guide
+        cfg = {**cfg, "publish": guide.publish_now(cfg)}
     print(f"[입력 중] {folder.name}: {draft.title}")
 
     try:
@@ -203,6 +207,8 @@ def post_one(page: Page, cfg: dict, folder: Path, test: bool) -> None:
         print("[임시저장 완료] 네이버 블로그 글쓰기 → 임시저장 글에서 확인하세요.")
 
     (folder / POSTED_FILE).write_text(f"{datetime.now():%Y-%m-%d %H:%M}\n{result}\n", encoding="utf-8")
+    if kind == "총정리":
+        guide.record(folder, result)
 
 
 def main() -> None:

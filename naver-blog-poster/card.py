@@ -105,7 +105,10 @@ def build_thumb_html(card: dict, photo: Path | None, kind: str, cfg: dict) -> st
         small = _e(KIND_LABEL[kind])
     size = 92 if len(big) <= 14 else max(56, int(92 * 14 / len(big)))
     pos = card.get("thumb_pos", 75)
-    photo_css = f"background-image:url('{photo.resolve().as_uri()}');background-position:center {pos}%" if photo else ""
+    # contain: 흰 배경 차 사진(총정리 글)을 자르지 않고 가운데에 크게 놓는다
+    fit = ("background-size:96% auto;background-position:center 60%;background-color:#fff"
+           if card.get("thumb_fit") == "contain" else f"background-position:center {pos}%")
+    photo_css = f"background-image:url('{photo.resolve().as_uri()}');{fit}" if photo else ""
     top1 = cfg.get("thumb_top1", "BMW <span>한독모터스</span>")
     top2 = _e(cfg.get("thumb_top2", "용산 최현정대리"))
     return f"""<!doctype html><html lang="ko"><head><meta charset="utf-8">
@@ -155,7 +158,10 @@ def _shot(pages: list[tuple[str, Path, int]]) -> None:
                 page.wait_for_load_state("networkidle", timeout=8000)  # 글꼴 받기 (인터넷 없으면 맑은 고딕)
             except Exception:
                 pass
-            page.screenshot(path=str(out))
+            # 내용에 따라 아래로 길어지는 카드도 있다. 가로는 1080 으로 자른다 (기울인 큰 글씨가 옆으로 삐져나와도)
+            h = max(height, page.evaluate("document.body.scrollHeight"))
+            page.set_viewport_size({"width": 1080, "height": h})
+            page.screenshot(path=str(out), clip={"x": 0, "y": 0, "width": 1080, "height": h})
             page.close()
         browser.close()
 

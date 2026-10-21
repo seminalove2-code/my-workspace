@@ -101,20 +101,31 @@ def vehicle_line(memo: str) -> str:
     return memo
 
 
-def find_prices(memo: str) -> str:
-    """가격표에서 메모의 차종과 맞는 차종 묶음(## ...)만 골라낸다."""
-    text = read_text(PRICE_FILE)
-    if not text:
-        return ""
+def price_sections() -> tuple[str, dict[str, str]]:
+    """가격표를 (머리말, {"THE 5": 차종 묶음 글, ...}) 로 나눈다."""
+    header, *sections = re.split(r"(?m)^(?=## )", read_text(PRICE_FILE))
+    return header.strip(), {sec.splitlines()[0][3:].strip(): sec.strip() for sec in sections}
+
+
+def matching_series(memo: str) -> list[str]:
+    """메모의 차종과 맞는 가격표 차종 이름들 (예: ["THE 5"])."""
     target = vehicle_line(memo)
-    header, *sections = re.split(r"(?m)^(?=## )", text)
     picked = []
-    for sec in sections:
+    for name, sec in price_sections()[1].items():
         m = re.search(r"(?m)^검색어: (.*)$", sec)
         tokens = [t.strip() for t in m.group(1).split(",")] if m else []
         if any(re.search(rf"(?<![A-Za-z0-9]){re.escape(t)}(?![0-9])", target, re.I) for t in tokens if t):
-            picked.append(sec.strip())
-    return header.strip() + "\n\n" + "\n\n".join(picked) if picked else ""
+            picked.append(name)
+    return picked
+
+
+def find_prices(memo: str) -> str:
+    """가격표에서 메모의 차종과 맞는 차종 묶음(## ...)만 골라낸다."""
+    if not PRICE_FILE.exists():
+        return ""
+    header, sections = price_sections()
+    picked = [sections[n] for n in matching_series(memo)]
+    return header + "\n\n" + "\n\n".join(picked) if picked else ""
 
 
 def build_content(folder: Path, images: list[Path], references: list[str], cfg: dict) -> list[tuple[str, object]]:
@@ -175,6 +186,10 @@ def generate(cfg: dict, folder: Path) -> None:
                 blocks.insert(0, Block("image", THUMB_FILE))  # 썸네일은 글 맨 처음 (네이버 검색 대표 사진)
         except Exception as e:  # 카드가 실패해도 글은 쓴다
             print(f"[주의] 스펙 카드를 만들지 못했습니다: {e}")
+    # 이 차종 총정리 글이 발행돼 있으면 그 글로 가는 안내를 붙인다
+    import guide  # guide 가 generate 를 쓰므로 여기서 불러온다
+    if link := guide.link_for(read_text(folder / TOPIC_FILE)):
+        blocks.append(Block("paragraph", link))
     # 상담 안내는 AI가 아니라 설정 그대로 붙인다 (연락처 오타 방지)
     if cfg.get("closing"):
         blocks.append(Block("paragraph", cfg["closing"].strip()))

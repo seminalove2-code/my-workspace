@@ -11,3 +11,6 @@ references/*
 
 # 딜러 자료(Approach Book)에서 뽑은 가격표는 공개 저장소에 올리지 않음
 data/가격표.txt
+data/차종사진/
+data/총정리_썸네일/
+data/총정리_기록.json

@@ -30,8 +30,10 @@ import ai_providers
 import card
 import fetch_reference
 import generate
+import guide
 import login
 import post
+import task_schedule
 import settings_io
 from common import (BLUR_DIR, DRAFT_FILE, IMAGE_LINE, POSTED_FILE, POSTS_DIR, TOPIC_FILE, IMAGE_EXTS,
                     list_images, load_config, needs_blur, read_draft, upload_image)
@@ -246,13 +248,75 @@ def upload_to_naver(folder, text):
     save_draft(str(folder), text)
     read_draft(folder / DRAFT_FILE)  # 제목 없는 글이면 여기서 알려준다
     cfg = load_config()
+    published = guide.publish_now(cfg) if generate.post_kind(folder) == guide.KIND else cfg.get("publish")
     done, log = run_captured(post.run_posts, cfg, [folder])
     if done:
-        gr.Info("임시저장했습니다. 네이버 블로그에서 확인 후 발행하세요." if not cfg.get("publish")
-                else "발행했습니다.")
+        gr.Info("발행했습니다." if published else "임시저장했습니다. 네이버 블로그에서 확인 후 발행하세요.")
     else:
         gr.Warning("올리지 못했습니다. 아래 기록을 확인하세요.")
     return log
+
+
+# ── 총정리 글 탭 ──
+
+def guide_view(series=None):
+    rows = guide.status_rows()
+    names = [r[1] for r in rows]
+    series = series if series in names else (guide.next_series() or (names[0] if names else None))
+    return (rows, gr.Dropdown(choices=names, value=series), guide.review_items(series) if series else [],
+            task_schedule.status() if sys.platform == "win32" else "윈도우에서만 켤 수 있어요")
+
+
+def guide_extract(pdf):
+    if not pdf:
+        raise gr.Error("Approach Book PDF 파일을 올려주세요.")
+    _, log = run_captured(guide.extract, pdf)
+    return (log, *guide_view())
+
+
+def guide_make(series):
+    if not series:
+        raise gr.Error("차종을 고르세요.")
+    if not guide.assets(series):
+        raise gr.Error("이 차종은 색상 사진이 없습니다. 먼저 PDF에서 사진을 뽑아주세요.")
+    load_dotenv(ROOT / ".env", override=True)
+    folder, log = run_captured(guide.make, load_config(), series)
+    if not folder:
+        raise gr.Error(f"글을 만들지 못했습니다.\n{log}")
+    cfg = load_config()
+    text = (folder / DRAFT_FILE).read_text(encoding="utf-8")
+    note = ("이 글은 바로 발행됩니다." if guide.publish_now(cfg)
+            else f"처음 {cfg.get('guide_review_count', 3)}편은 임시저장돼요. 네이버에서 확인 후 직접 발행하고, 아래 [총정리 글] 탭에 주소를 넣어주세요.")
+    return (str(folder), gallery_items(folder, cfg), note, text, preview_md(str(folder), text), log, gr.Tabs(selected="write"))
+
+
+def guide_thumb(series, photo):
+    if not series or not photo:
+        raise gr.Error("차종을 고르고 사진을 올려주세요.")
+    guide.THUMB_DIR.mkdir(parents=True, exist_ok=True)
+    for old in guide.THUMB_DIR.glob(f"{guide.safe(series)}.*"):
+        old.unlink()
+    Image.open(photo).convert("RGB").save(guide.THUMB_DIR / f"{guide.safe(series)}.jpg", quality=92)
+    gr.Info(f"{guide.kname(series)} 총정리 썸네일에 이 사진을 씁니다. (번호판은 미리 가려주세요)")
+    return None
+
+
+def guide_url(series, url):
+    if not series or not url.strip().startswith("http"):
+        raise gr.Error("차종을 고르고 글 주소(https://blog.naver.com/...)를 붙여넣으세요.")
+    guide.set_url(series, url)
+    gr.Info(f"이제 {guide.kname(series)} 출고후기 끝에 총정리 글 링크가 붙어요.")
+    return guide.status_rows(), ""
+
+
+def guide_schedule(on, at):
+    if sys.platform != "win32":
+        raise gr.Error("윈도우에서만 켤 수 있어요.")
+    if on and not re.fullmatch(r"\d{1,2}:\d{2}", at.strip()):
+        raise gr.Error("시간은 09:40 처럼 적어주세요.")
+    msg = task_schedule.enable(at.strip()) if on else task_schedule.disable()
+    gr.Info(msg)
+    return task_schedule.status()
 
 
 # ── 지난 글 탭 ──
@@ -414,6 +478,36 @@ def build() -> gr.Blocks:
                 thumb_pos.release(move_thumb, [folder, thumb_pos, editor], preview)
                 upload_btn.click(upload_to_naver, [folder, editor], log)
 
+            with gr.Tab("총정리 글", id="guide"):
+                gr.Markdown("차종별 **색상·트림·가격 총정리** 글을 하루 한 편씩 씁니다. "
+                            "출고후기 끝에 그 차종 총정리 글 링크가 자동으로 붙어요.")
+                gr.Markdown("#### ① 처음 한 번: Approach Book 에서 색상 사진 뽑기")
+                with gr.Row():
+                    g_pdf = gr.File(label="Approach Book PDF (전체 파일)", file_types=[".pdf"], type="filepath")
+                    g_extract_btn = gr.Button("📥 색상·시트·휠 사진 뽑기 (1~2분)", variant="primary")
+                g_log = gr.Textbox(label="뽑은 결과", lines=5, interactive=False)
+                gr.Markdown("#### ② 차종별 확인 — 사진과 이름이 맞는지 훑어보세요")
+                with gr.Row():
+                    g_series = gr.Dropdown(label="차종", filterable=True)
+                    g_thumb = gr.File(label="썸네일에 쓸 실제 사진 (선택 · 없으면 흰 배경 차 사진)", file_types=["image"], type="filepath")
+                    g_thumb_btn = gr.Button("이 사진을 썸네일로")
+                g_gallery = gr.Gallery(label="뽑은 사진", columns=7, height=320)
+                g_make_btn = gr.Button("✍️ 이 차종 총정리 글 지금 만들기 (글 쓰기 화면에서 확인 후 올리기)")
+                gr.Markdown("#### ③ 매일 자동으로 쓰기")
+                with gr.Row():
+                    g_time = gr.Textbox(value="09:40", label="시작 시각 (이 시각부터 0~90분 사이에 올라가요)")
+                    g_on = gr.Button("▶ 매일 자동 켜기", variant="primary")
+                    g_off = gr.Button("■ 끄기")
+                g_sched = gr.Markdown()
+                gr.Markdown("PC가 켜져 있고 로그인된 상태여야 해요. 꺼져 있던 날은 다음에 켤 때 한 편 씁니다. "
+                            "자동으로 올릴 때 크롬 창이 잠깐 열렸다 닫혀요.")
+                gr.Markdown("#### 진행 상황")
+                g_table = gr.Dataframe(headers=["순서", "차종", "이름", "상태", "글 주소"], interactive=False)
+                with gr.Row():
+                    g_url = gr.Textbox(label="임시저장 글을 직접 발행했다면 그 글 주소를 넣어주세요 (위에서 차종 선택)")
+                    g_url_btn = gr.Button("주소 저장")
+                    g_refresh = gr.Button("새로고침")
+
             with gr.Tab("지난 글", id="history"):
                 table = gr.Dataframe(headers=["폴더", "제목", "상태"], interactive=False)
                 with gr.Row():
@@ -466,7 +560,18 @@ def build() -> gr.Blocks:
                 refs_btn.click(update_refs, None, refs_out)
                 quit_btn.click(quit_app, None, quit_out)
 
+                g_view = [g_table, g_series, g_gallery, g_sched]
+                g_extract_btn.click(guide_extract, g_pdf, [g_log, *g_view])
+                g_series.input(lambda s: guide.review_items(s), g_series, g_gallery)
+                g_thumb_btn.click(guide_thumb, [g_series, g_thumb], g_thumb)
+                g_make_btn.click(guide_make, g_series, [folder, gallery, plate_note, editor, preview, log, tabs])
+                g_on.click(lambda t: guide_schedule(True, t), g_time, g_sched)
+                g_off.click(lambda t: guide_schedule(False, t), g_time, g_sched)
+                g_url_btn.click(guide_url, [g_series, g_url], [g_table, g_url])
+                g_refresh.click(guide_view, g_series, g_view)
+
         demo.load(settings_values, None, [ai_name, ai_model, key_note, publish, closing])
+        demo.load(guide_view, None, g_view)
         demo.load(history, None, [table, pick])
     return demo
 
@@ -498,4 +603,4 @@ if __name__ == "__main__":
     if "--no-window" not in sys.argv:
         threading.Thread(target=open_window, args=(url,), daemon=True).start()
     build().launch(server_name="127.0.0.1", server_port=port, inbrowser=False, quiet=True,
-                   allowed_paths=[str(POSTS_DIR)], footer_links=[])
+                   allowed_paths=[str(POSTS_DIR), str(guide.ASSET_DIR), str(guide.THUMB_DIR)], footer_links=[])
