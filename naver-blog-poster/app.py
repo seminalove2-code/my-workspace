@@ -471,7 +471,14 @@ footer {display:none !important}
 .hint {color: var(--body-text-color-subdued); font-size:13px}
 #make-btn, #queue-btn {font-size:17px !important; min-height:52px}
 """
-KIND_LABEL = {"quote": "인용구 소제목", "heading": "굵은 글씨 한 줄", "paragraph": "문단"}
+KIND_LABEL = {"quote": "인용구 소제목", "heading": "굵은 글씨 한 줄", "paragraph": "문단",
+              "table": "📊 표 (네이버 표로 들어가요 · 칸을 눌러 바로 고칠 수 있어요)"}
+
+
+def table_text(df) -> str:
+    """편집한 표(Dataframe) → draft.md 의 '| 칸 | 칸 |' 글"""
+    rows = [list(df.columns)] + df.astype(str).values.tolist()
+    return "\n".join("| " + " | ".join(str(c).replace("|", "/") for c in r) + " |" for r in rows)
 
 
 def build() -> gr.Blocks:
@@ -527,8 +534,14 @@ def build() -> gr.Blocks:
                                                      elem_classes="blk-img")
                                         else:
                                             gr.Markdown(f"⚠️ 사진 없음: {text}")
+                                    elif k == "table":
+                                        rows = post.table_rows(text)
+                                        df = gr.Dataframe(value=rows[1:], headers=rows[0] if rows else None, interactive=True, wrap=True,
+                                                          label=KIND_LABEL["table"], max_height=900,
+                                                          column_widths=["26%"] + [f"{74 / max(1, len(rows[0]) - 1):.0f}%"] * (len(rows[0]) - 1) if rows else None)
+                                        df.input(lambda f, t, g, b, v, i=i: set_text(f, t, g, b, i, table_text(v)), [*common_in, df], blocks)
                                     else:
-                                        tb = gr.Textbox(text, label=KIND_LABEL.get(k, "문단"), lines=1 if k != "paragraph" else 3,
+                                        tb = gr.Textbox(text, label=KIND_LABEL.get(k, "문단"), lines={"paragraph": 3, "table": 8}.get(k, 1),
                                                         max_lines=30, elem_classes="quote" if k == "quote" else "")
                                         tb.blur(lambda f, t, g, b, v, i=i: set_text(f, t, g, b, i, v), [*common_in, tb], blocks)
                                     with gr.Row(elem_classes="tools"):

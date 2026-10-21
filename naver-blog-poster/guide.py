@@ -56,7 +56,8 @@ SYSTEM = """당신은 네이버 블로그 글을 쓰는 작가입니다. <style>
 <guide> 의 제목 형식과 구조를 그대로 따릅니다.
 
 사실 정보 규칙 (가장 중요):
-- 가격, 제원, 옵션은 <prices> 에 있는 것만, 색상·시트·휠은 <colors> 에 있는 것만 씁니다. 숫자를 추측하지 않습니다.
+- 가격과 옵션은 <prices> 에 있는 것만, 제원(크기·무게·출력·토크·연비 등)은 <specs> 를 우선하고 없으면 <prices> 의 [제원]에서만,
+  색상·시트·휠은 <colors> 에 있는 것만 씁니다. 숫자를 추측하지 않습니다.
 - "가장 많이 출고", "고객님들이 많이 고르는", "인기 1위" 처럼 확인할 수 없는 말은 쓰지 않습니다.
 - <colors> 에 색상 자료가 없는 트림은 색상을 단정하지 말고 "문자 주시면 바로 알려드릴게요"로 안내합니다.
 - 할인 금액과 딜러 프로모션 조건은 절대 쓰지 않습니다. 프로모션은 이 말투로 한 번만: "공식 딜러라 블로그에는 할인 조건을 적을 수 없는 점~ 너그럽게 이해 부탁드려요 🙏 문자 주시면 이번 달 조건 바로 알려드릴게요!"
@@ -65,7 +66,8 @@ SYSTEM = """당신은 네이버 블로그 글을 쓰는 작가입니다. <style>
 
 형식 규칙:
 - blocks 는 글 순서대로. kind 는 quote(인용구 소제목), paragraph(문단), image(사진), heading(굵은 한 줄) 중 하나.
-- image 블록의 text 는 <images> 의 파일 이름을 정확히 그대로 씁니다. 카드 3장(가격표·색상표·시트휠)은 꼭 한 번씩 넣고, 색상 사진은 2~3장만 고릅니다.
+- image 블록의 text 는 <images> 의 파일 이름을 정확히 그대로 씁니다. <images> 의 카드(가격표·색상표·시트휠)는 꼭 한 번씩 넣고, 색상 사진은 2~3장만 고릅니다.
+- 제원 소제목 바로 아래에는 프로그램이 <specs> 전체를 네이버 표로 넣습니다. 그 아래 문단에는 표를 그대로 옮기지 말고 눈여겨볼 점 2~3줄만 씁니다.
 - 썸네일은 프로그램이 맨 앞에 넣으므로 blocks 에 넣지 않습니다. 첫 블록은 인사말 문단입니다.
 - 네이버 모바일에서 읽기 좋게 한 줄을 짧게 끊고 가운데 정렬에 어울리게 씁니다. 분량은 1,500~2,500자.
 - tags 는 # 없이 띄어쓰기 없는 단어 10개 안팎."""
@@ -124,6 +126,69 @@ def _overlap(a, b) -> bool:
     return a.x0 < b.x1 and a.x1 > b.x0
 
 
+def _lines(page) -> list:
+    import pymupdf
+    out = [(pymupdf.Rect(l["bbox"]), "".join(s["text"] for s in l["spans"]).strip())
+           for b in page.get_text("dict")["blocks"] for l in b.get("lines", [])]
+    return [(r, t) for r, t in out if t]
+
+
+def _cx(r) -> float:
+    return (r.x0 + r.x1) / 2
+
+
+def _cy(r) -> float:
+    return (r.y0 + r.y1) / 2
+
+
+def spec_table(lines: list) -> dict | None:
+    """제원표 페이지 → {"models": [...], "rows": [[항목, [모델별 값]]]}.
+    여러 모델에 걸친 칸(합쳐진 셀)은 값이 그 칸들의 가운데에 있으므로, 값 사이 중간선으로 모델 칸을 나눠 준다."""
+    body = [(r, t) for r, t in lines if not t.startswith("※")]
+    labels = [(r, t) for r, t in body if r.x0 >= 40 and r.x1 <= 145]
+    if not labels:
+        return None
+    merged = []  # '(시내 / 고속)' 처럼 '(' 로 시작하는 줄은 바로 위 항목에 붙인다
+    for r, t in sorted(labels, key=lambda x: x[0].y0):
+        if t.startswith("(") and merged:
+            merged[-1] = (merged[-1][0] | r, merged[-1][1] + " " + t)
+        else:
+            merged.append((r, t))
+    top = min(r.y0 for r, _ in merged)
+    heads = sorted(((r, t) for r, t in body if r.x0 >= 140 and r.y1 <= top + 2), key=lambda x: _cx(x[0]))
+    cols: list[list] = []  # 두 줄 모델 이름('523d' / '(xDrive)')은 합친다
+    for r, t in heads:
+        if cols and abs(_cx(r) - cols[-1][0]) < 20:
+            cols[-1][1] += " " + t
+        else:
+            cols.append([_cx(r), t])
+    if len(cols) < 1:
+        return None
+    centers = [c for c, _ in cols]
+    rows = []
+    for lr, label in merged:
+        vals = sorted(((r, t) for r, t in body if r.x0 >= 140 and r.y0 > top - 2
+                       and abs(_cy(r) - _cy(lr)) <= 9 and (r, t) not in heads), key=lambda x: _cx(x[0]))
+        stacked: list[list] = []  # 한 칸에 두 줄로 쓴 값 (타이어 규격 등)
+        for r, t in sorted(vals, key=lambda x: x[0].y0):
+            hit = next((s for s in stacked if abs(s[0] - _cx(r)) < 20), None)
+            if hit:
+                hit[1] += " / " + t
+            else:
+                stacked.append([_cx(r), t])
+        stacked.sort()
+        if not stacked:
+            continue
+        per = []
+        for c in centers:
+            k = 0
+            while k + 1 < len(stacked) and c >= (stacked[k][0] + stacked[k + 1][0]) / 2:
+                k += 1
+            per.append(stacked[k][1])
+        rows.append([re.sub(r"^안전\s+", "", label), per])
+    return {"models": [t for _, t in cols], "rows": rows} if rows else None
+
+
 def extract(pdf: str | Path, log=print) -> dict[str, int]:
     """색상 페이지('참고를 위한 이미지' 문구가 있는 페이지)마다 사진 아래 '(코드)' 글자를 이름으로 붙여 저장한다."""
     import pymupdf
@@ -133,8 +198,18 @@ def extract(pdf: str | Path, log=print) -> dict[str, int]:
         shutil.rmtree(ASSET_DIR)
     data: dict[str, dict] = {}
     banner = None  # 가장 최근에 본 '페이지 맨 위 가로 사진' (차종 소개 페이지의 대표 사진 → 썸네일)
+    specs: dict[str, list] = {}  # 차종 → 제원표들
     for pno, page in enumerate(doc):
-        if "참고를 위한 이미지" not in page.get_text():
+        text = page.get_text()
+        if "전장" in text and "휠베이스" in text and "참고를 위한 이미지" not in text:
+            sl = _lines(page)
+            hm = next((re.match(r"(?i)^the\s+(.+?)\.", t) for _, t in sl if re.match(r"(?i)^the\s+\S", t)), None)
+            table = spec_table(sl)
+            if hm and table:
+                s_name = next((n for n in names if key(hm.group(1)) in [key(p) for p in n.split("/")]), "THE " + hm.group(1).strip())
+                specs.setdefault(s_name, []).append({**table, "page": pno + 1})
+                log(f"  {pno + 1}쪽 {s_name} 제원표: {', '.join(table['models'])} · {len(table['rows'])}개 항목")
+        if "참고를 위한 이미지" not in text:
             for im in page.get_images(full=True):
                 for r in page.get_image_rects(im[0]):
                     if r.y0 <= 5 and r.width >= page.rect.width * .95 and r.height >= page.rect.height * .2:
@@ -191,6 +266,7 @@ def extract(pdf: str | Path, log=print) -> dict[str, int]:
             g = group
             log(f"  {pno + 1}쪽 {series} ({g['title']}): 외장 {len(g['exterior'])} · 시트 {len(g['seats'])} · 휠 {len(g['wheels'])}")
     for series, d in data.items():
+        d["specs"] = specs.get(series, [])
         (ASSET_DIR / safe(series) / "data.json").write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
     missing = [n for n in names if n not in data]
     log(f"[완료] {len(data)}개 차종 사진을 뽑았습니다." + (f"\n  색상 페이지를 못 찾은 차종: {', '.join(missing)}" if missing else ""))
@@ -315,6 +391,25 @@ def interior_html(series: str, d: dict, cfg: dict) -> str:
     return _page(f"{kname(series)} 시트 · 휠", "트림마다 들어가는 시트와 휠이 달라요", "".join(sections), cfg, "white")
 
 
+def spec_tables(d: dict) -> list[str]:
+    """Approach Book 제원표 → 네이버 표로 넣을 '| 칸 | 칸 |' 글. 같은 값이 이어지는 칸은 올릴 때 합쳐진다."""
+    out = []
+    for t in d.get("specs", []):
+        lines = ["| 구분 | " + " | ".join(t["models"]) + " |"]
+        lines += ["| " + label + " | " + " | ".join(v.replace("|", "/") for v in vals) + " |" for label, vals in t["rows"]]
+        out.append("\n".join(lines))
+    return out
+
+
+def specs_text(d: dict) -> str:
+    """AI에게 줄 모델별 제원 (Approach Book 제원표 그대로)"""
+    out = []
+    for t in d.get("specs", []):
+        for k, m in enumerate(t["models"]):
+            out.append(f"- {m}: " + ", ".join(f"{label} {vals[k]}" for label, vals in t["rows"]))
+    return "\n".join(out)
+
+
 def colors_text(d: dict) -> str:
     """AI에게 줄 색상·시트·휠 정리"""
     out = []
@@ -390,6 +485,7 @@ def make(cfg: dict, series: str, log=print) -> Path | None:
         f"<guide>\n{read_text(GUIDE_DIR / f'{KIND}.txt')}\n</guide>\n\n"
         f"<keywords>\n{read_text(KEYWORD_FILE)}\n</keywords>\n\n"
         f"<prices>\n{header}\n\n{sections[series]}\n</prices>\n\n"
+        f"<specs>\n{specs_text(d) or '(제원표 없음)'}\n</specs>\n\n"
         f"<colors>\n{colors_text(d)}\n</colors>\n\n"
         "<images>\n" + "\n".join(f"{n}: {desc}" for n, desc in images) + "\n</images>\n\n"
         f"차종: {series} ({kname(series)}). 이 차종의 색상·트림·가격 총정리 글을 써주세요.")]
@@ -413,6 +509,14 @@ def make(cfg: dict, series: str, log=print) -> Path | None:
         if name in names and name not in used:
             at = next((i + 1 for i, b in enumerate(blocks) if b.kind == "quote" and word in b.text), len(blocks))
             blocks.insert(at, Block("image", name))
+    # 제원표는 네이버 표로: '제원' 소제목 바로 아래 (없으면 색상 소제목 앞)
+    if tables := spec_tables(d):
+        at = next((i + 1 for i, b in enumerate(blocks) if b.kind == "quote" and "제원" in b.text), None)
+        if at is None:
+            at = next((i for i, b in enumerate(blocks) if b.kind == "quote" and "색상" in b.text), len(blocks))
+            blocks.insert(at, Block("quote", f"{kname(series)} 크기·무게·성능 한눈에"))
+            at += 1
+        blocks[at:at] = [Block("table", t) for t in tables]
     blocks.insert(0, Block("image", THUMB_FILE))
     if cfg.get("closing"):
         blocks.append(Block("paragraph", cfg["closing"].strip()))

@@ -46,7 +46,8 @@ SYSTEM = """당신은 네이버 블로그 글을 쓰는 작가입니다.
 - 분량은 2,000~3,000자, 인용구 소제목 4~6개를 기준으로 합니다.
 
 사실 정보 규칙 (가장 중요):
-- 가격은 <prices> 의 [판매가격]에 있는 것만, 제원(출력, 토크, 크기 등)은 [제원]에 있는 것만, 옵션은 [트림별 주요 사양]에 있는 것만 씁니다. <prices> 에 없는 트림의 가격은 쓰지 않습니다.
+- 가격은 <prices> 의 [판매가격]에 있는 것만, 옵션은 [트림별 주요 사양]에 있는 것만 씁니다.
+- 제원(크기, 공차 중량, 출력, 토크, 0-100km/h, 연비 등)은 <specs> (Approach Book 제원표, 모델별 정확한 값)를 우선하고, 없으면 [제원]에 있는 것만 씁니다. <prices> 에 없는 트림의 가격은 쓰지 않습니다.
 - [제원]의 모델 이름은 엔진 기준입니다. 메모의 트림 이름 앞부분과 맞는 줄의 값만 씁니다. (예: 트림 "X3 20 xDrive M Sport" → [제원]의 "X3 20" 줄). 맞는 줄이 없거나 애매하면 그 값은 쓰지 않습니다.
 - 출고후기와 차량정보 글에는 "차량 주요 사양" 인용구 소제목과 사양 정리를 반드시 넣습니다.
 - card 에는 스펙 카드 이미지에 들어갈 값을 넣습니다. 규칙은 본문과 같아서 <prices> 와 메모에 있는 값만 쓰고, 모르면 "" 로 둡니다.
@@ -139,11 +140,14 @@ def build_content(folder: Path, images: list[Path], references: list[str], cfg: 
     memo = read_text(folder / TOPIC_FILE)
     prices = find_prices(memo) or "(가격표에 이 차종이 없습니다. 가격은 쓰지 마세요.)"
     guide = read_text(GUIDE_DIR / f"{post_kind(folder)}.txt")
+    import guide as guide_mod  # Approach Book 제원표 (PDF 에서 뽑아 둔 경우)
+    specs = "\n".join(t for s in matching_series(memo) if (t := guide_mod.specs_text(guide_mod.assets(s))))
     content.append(("text",
         f"<style>\n{cfg.get('style', '')}\n</style>\n\n"
         f"<guide>\n{guide}\n</guide>\n\n"
         f"<keywords>\n{read_text(KEYWORD_FILE)}\n</keywords>\n\n"
         f"<prices>\n{prices}\n</prices>\n\n"
+        f"<specs>\n{specs or '(제원표 없음)'}\n</specs>\n\n"
         f"<memo>\n{memo}\n</memo>\n\n"
         "위 메모와 사진으로 블로그 글을 써주세요."))
     return content

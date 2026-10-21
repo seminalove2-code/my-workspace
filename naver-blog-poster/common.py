@@ -91,10 +91,11 @@ def post_kind(folder: Path) -> str:
 # > 인용구           → 인용구 상자
 # 일반 문단          → 그대로
 # [사진: 파일이름.jpg] → 폴더 안의 사진 업로드
+# | 칸 | 칸 |          → 네이버 표 (줄마다 한 행, 첫 행은 제목 행)
 
 @dataclass
 class Block:
-    kind: str  # "heading" | "quote" | "paragraph" | "image"
+    kind: str  # "heading" | "quote" | "paragraph" | "image" | "table"
     text: str
 
 
@@ -117,6 +118,8 @@ def write_draft(path: Path, draft: Draft) -> None:
             lines.append(f"> {b.text}")
         elif b.kind == "image":
             lines.append(f"[사진: {b.text}]")
+        elif b.kind == "table":
+            lines.extend(l for l in b.text.splitlines() if l.strip().startswith("|"))
         else:
             lines.append(b.text)
         lines.append("")
@@ -128,11 +131,15 @@ def read_draft(path: Path) -> Draft:
     title, tags = "", []
     blocks: list[Block] = []
     paragraph: list[str] = []
+    table: list[str] = []
 
     def flush():
         if paragraph:
             blocks.append(Block("paragraph", "\n".join(paragraph)))
             paragraph.clear()
+        if table:
+            blocks.append(Block("table", "\n".join(table)))
+            table.clear()
 
     for raw in text.splitlines():
         line = raw.rstrip()
@@ -151,7 +158,14 @@ def read_draft(path: Path) -> Draft:
         elif m := IMAGE_LINE.match(line.strip()):
             flush()
             blocks.append(Block("image", m.group(1)))
+        elif line.strip().startswith("|"):
+            if paragraph:
+                flush()
+            if not re.fullmatch(r"\|[\s:|-]*\|?", line.strip()):  # '|---|---|' 구분선은 건너뜀
+                table.append(line.strip())
         else:
+            if table:
+                flush()
             paragraph.append(line)
     flush()
 

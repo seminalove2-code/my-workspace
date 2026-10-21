@@ -5,6 +5,7 @@
   python post.py 글폴더이름        # 특정 폴더만
   python post.py 글폴더이름 --test  # 끝까지 입력만 하고 발행 버튼은 안 누름 (처음 테스트용)
 """
+import html
 import random
 import sys
 import time
@@ -29,6 +30,7 @@ SEL = {
     "image_button": "button.se-image-toolbar-button",
     "quote_button": "button.se-insert-quotation-default-toolbar-button, button[data-name='quotation']",
     "quote_component": ".se-component.se-quotation",
+    "table_component": ".se-component.se-table",
     "publish_open": "button[class*='publish_btn']",     # 오른쪽 위 '발행'
     "save": "button[class*='save_btn']",                # '저장' (임시저장)
     "publish_layer": "div[class*='layer_publish']",
@@ -69,6 +71,9 @@ def move_caret_below_last(page: Page, ed: FrameLocator) -> None:
     if "se-image" in cls:
         last.click()
         page.keyboard.press("Enter")
+    elif "se-table" in cls:  # 표 바로 아래 빈 줄로
+        last.click(position={"x": 5, "y": max(1, (last.bounding_box() or {"height": 2})["height"] - 2)})
+        page.keyboard.press("Control+End")
     elif "se-quotation" in cls:
         last.locator(".se-text-paragraph").last.click()
         page.keyboard.press("End")
@@ -108,6 +113,57 @@ def insert_quote(page: Page, ed: FrameLocator, text: str) -> None:
     move_caret_below_last(page, ed)
 
 
+def table_rows(text: str) -> list[list[str]]:
+    return [[c.strip() for c in l.strip().strip("|").split("|")] for l in text.splitlines() if l.strip().startswith("|")]
+
+
+def table_html(rows: list[list[str]]) -> str:
+    """같은 값이 옆으로 이어지면 칸을 합친다 (전장 5,060 처럼 모든 모델이 같은 값)."""
+    out = []
+    for r, row in enumerate(rows):
+        cells, i = [], 0
+        while i < len(row):
+            j = i
+            while r > 0 and i > 0 and j + 1 < len(row) and row[j + 1] == row[i]:
+                j += 1
+            tag = "th" if r == 0 or i == 0 else "td"
+            span = f' colspan="{j - i + 1}"' if j > i else ""
+            cells.append(f"<{tag}{span}>{html.escape(row[i])}</{tag}>")
+            i = j + 1
+        out.append("<tr>" + "".join(cells) + "</tr>")
+    return "<table><tbody>" + "".join(out) + "</tbody></table><p><br></p>"
+
+
+def insert_table(page: Page, ed: FrameLocator, text: str) -> None:
+    """네이버 표로 넣는다. 에디터에 HTML 표를 붙여넣기(paste)하는 방식.
+    표가 안 생기면 '항목 : 값' 글로 대신 넣어서 글은 끝까지 올라가게 한다."""
+    rows = table_rows(text)
+    if not rows:
+        return
+    before = ed.locator(SEL["table_component"]).count()
+    plain = "\n".join("\t".join(r) for r in rows)
+    ed.locator(SEL["body_text"]).last.evaluate(
+        """(el, [h, t]) => {
+            const doc = el.ownerDocument, target = doc.activeElement || el;
+            const dt = new DataTransfer();
+            dt.setData('text/html', h); dt.setData('text/plain', t);
+            target.dispatchEvent(new ClipboardEvent('paste', {clipboardData: dt, bubbles: true, cancelable: true}));
+        }""", [table_html(rows), plain])
+    deadline = time.time() + 6
+    while ed.locator(SEL["table_component"]).count() <= before and time.time() < deadline:
+        time.sleep(0.3)
+    if ed.locator(SEL["table_component"]).count() > before:
+        pause(0.8, 1.2)
+        move_caret_below_last(page, ed)
+        return
+    print("  [주의] 네이버 표를 넣지 못해 글로 대신 넣었습니다.")
+    head, *body = rows
+    for r in body:
+        type_lines(page, f"{r[0]} : " + " / ".join(f"{m} {v}" for m, v in zip(head[1:], r[1:])) if len(set(r[1:])) > 1
+                   else f"{r[0]} : {r[1]}")
+        page.keyboard.press("Enter")
+
+
 def insert_heading(page: Page, text: str) -> None:
     page.keyboard.press("Control+B")
     page.keyboard.insert_text(text)
@@ -131,11 +187,14 @@ def fill_editor(page: Page, ed: FrameLocator, cfg: dict, folder: Path, draft: Dr
         if block.kind == "quote":
             insert_quote(page, ed, block.text)
             continue
+        if block.kind == "table":
+            insert_table(page, ed, block.text)
+            continue
         if block.kind == "heading":
             insert_heading(page, block.text)
         else:
             type_lines(page, block.text)
-        next_is_box = i + 1 < len(draft.blocks) and draft.blocks[i + 1].kind in ("image", "quote")
+        next_is_box = i + 1 < len(draft.blocks) and draft.blocks[i + 1].kind in ("image", "quote", "table")
         if not next_is_box:
             page.keyboard.press("Enter")
             page.keyboard.press("Enter")
