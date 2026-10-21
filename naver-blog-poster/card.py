@@ -1,6 +1,6 @@
-"""차량 스펙 카드 이미지(1080x1350)를 만든다. 글 폴더의 _card 폴더에 저장한다.
+"""차량 스펙 카드(1080x1080)와 썸네일 이미지를 만든다. 글 폴더의 _card 폴더에 저장한다.
 
-카드 값은 AI가 가격표·메모에서 뽑은 것(card.json)이고, 사진은 그 글의 사진 중 하나다.
+카드 값은 AI가 가격표·메모에서 뽑은 것(card.json)이다. 사진은 썸네일에만 쓴다.
 """
 import html
 import json
@@ -12,7 +12,7 @@ from common import CARD_DIR, CARD_FILE, THUMB_FILE, list_images, load_config, up
 
 CSS = """
 *{box-sizing:border-box;margin:0;padding:0}
-body{width:1080px;height:1350px;display:flex;flex-direction:column;overflow:hidden;
+body{width:1080px;height:1080px;display:flex;flex-direction:column;overflow:hidden;
  font-family:'Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif;background:#f3f5f8;color:#14213d}
 .top{background:#0b1d3a;color:#fff;padding:44px 64px 32px;position:relative}
 .stripe{display:flex;gap:6px;margin-bottom:26px}.stripe i{width:46px;height:8px;border-radius:2px}
@@ -22,8 +22,7 @@ h1{font-size:76px;font-weight:900;letter-spacing:-1px;margin-top:6px;line-height
 h1.long{font-size:58px}
 .sub{font-size:26px;color:#c9d6ea;margin-top:10px}
 .who{position:absolute;right:64px;top:62px;text-align:right;font-size:22px;color:#9fb6d9;line-height:1.5}
-.photo{height:310px;flex:none;background:#c9d0da center/cover no-repeat}
-.price{display:flex;justify-content:space-between;align-items:baseline;padding:22px 64px 4px}
+.price{display:flex;justify-content:space-between;align-items:baseline;padding:30px 64px 8px}
 .price span{font-size:28px;color:#5b6b82;font-weight:500}
 .price b{font-size:62px;color:#1c69d4;font-weight:900}
 .price small{font-size:24px;color:#5b6b82;margin-left:8px}
@@ -65,7 +64,8 @@ def _e(text: str) -> str:
     return html.escape(str(text or "").strip())
 
 
-def build_html(card: dict, photo: Path | None, cfg: dict) -> str:
+def build_html(card: dict, cfg: dict) -> str:
+    """스펙 카드 (사진 없이 정보만, 1080x1080). 실제 사진은 글 본문에 충분히 있다."""
     tiles = [("최고출력", card.get("power"), "마력"), ("최대토크", card.get("torque"), "kg.m"),
              ("0-100km/h", card.get("zero100"), "초"), ("엔진", card.get("engine"), None),
              ("구동 · 변속기", card.get("drive"), None), ("최고속도", card.get("top_speed"), "km/h")]
@@ -79,8 +79,6 @@ def build_html(card: dict, photo: Path | None, cfg: dict) -> str:
     tag = cfg.get("card_tagline", "좋은 차는 기본, 좋은 담당자는 선택.<br>BMW는 최현정입니다 🩶")
     model = _e(card.get("model"))
     sub = " · ".join(x for x in (_e(card.get("year")), _e(card.get("colors"))) if x)
-    photo_css = (f"background-image:url('{photo.resolve().as_uri()}');background-position:center {card.get('photo_pos', 65)}%"
-                 if photo else "")
     price = (f'<div class="price"><span>판매가격</span><div><b>{_e(card["price"])}</b><small>만원</small></div></div>'
              if str(card.get("price") or "").strip() else "")
     size = f'<div class="size">크기 {_e(card["size"])}</div>' if str(card.get("size") or "").strip() else ""
@@ -91,7 +89,6 @@ def build_html(card: dict, photo: Path | None, cfg: dict) -> str:
 <div class="series">{_e(card.get("series"))}</div>
 <h1 class="{'long' if len(model) > 16 else ''}">{model}</h1><div class="sub">{sub}</div>
 <div class="who">{who}</div></div>
-<div class="photo" style="{photo_css}"></div>
 {price}<div class="grid">{tile_html}</div>{size}<div class="opts">{opts}</div>
 <div class="note">가격·제원은 2026년 10월 기준이며 변동될 수 있습니다.</div>
 <div class="foot"><div><b>{_e(phone)}</b><p>문자 환영 · 관심 차종만 보내주셔도 됩니다</p></div>
@@ -177,6 +174,6 @@ def render(folder: Path, cfg: dict | None = None, kind: str = "") -> Path | None
         return None
     kind = kind or card.get("kind", "")
     d = folder / CARD_DIR
-    _shot([(build_html(card, _pick(folder, cfg, card.get("photo", "")), cfg), d / CARD_FILE, 1350),
+    _shot([(build_html(card, cfg), d / CARD_FILE, 1080),
            (build_thumb_html(card, _pick(folder, cfg, card.get("thumb_photo", "")), kind, cfg), d / THUMB_FILE, 1080)])
     return d / CARD_FILE
