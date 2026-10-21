@@ -8,3 +8,6 @@ posts/*
 !posts/예시-출고후기/
 references/*
 !references/README.txt
+
+# 딜러 자료(Approach Book)에서 뽑은 가격표는 공개 저장소에 올리지 않음
+data/가격표.txt
