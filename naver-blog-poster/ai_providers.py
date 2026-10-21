@@ -16,10 +16,28 @@ class AIBlock(BaseModel):
     text: str  # image 이면 사진 파일 이름
 
 
+class SpecCard(BaseModel):
+    # 스펙 카드에 들어갈 값. 모르는 값은 빈 문자열 "" (카드에서 그 칸을 뺀다)
+    series: str      # 예: THE 5
+    model: str       # 예: 520i M Sport
+    year: str        # 예: 26년식
+    colors: str      # 예: 브루클린 그레이 / 블랙
+    price: str       # 만원 단위 숫자만, 예: 7,610
+    power: str       # 마력 숫자만, 예: 190
+    torque: str      # kg.m 숫자만, 예: 31.6
+    zero100: str     # 초 숫자만, 예: 8.1
+    engine: str      # 짧게, 예: 4기통 가솔린 MHEV
+    drive: str       # 예: 후륜 · 자동 8단
+    top_speed: str   # km/h 숫자만, 예: 230
+    size: str        # 예: 5,060 × 1,900 × 1,515 mm · 휠베이스 2,995 mm
+    options: list[str]  # 체감되는 옵션 6~8개, 각 12자 안팎
+
+
 class AIDraft(BaseModel):
     title: str
     tags: list[str]
     blocks: list[AIBlock]
+    card: SpecCard
 
 
 class PlateBox(BaseModel):

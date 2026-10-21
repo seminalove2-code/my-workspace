@@ -27,6 +27,7 @@ from dotenv import load_dotenv
 from PIL import Image
 
 import ai_providers
+import card
 import fetch_reference
 import generate
 import login
@@ -104,7 +105,7 @@ def preview_md(folder: str, text: str) -> str:
         m = IMAGE_LINE.match(line.strip())
         if m and folder:
             img = upload_image(cfg, Path(folder), m.group(1))
-            out.append(f'<img src="/gradio_api/file={img.as_posix()}" width="420">' if img
+            out.append(f'<img src="/gradio_api/file={img.as_posix()}?t={int(img.stat().st_mtime)}" width="420">' if img
                        else f"⚠️ 사진 없음: {m.group(1)}")
         elif line.startswith(("# ", "## ")):
             out.append(line)
@@ -187,8 +188,22 @@ def replace_photo(folder, selected, new_file):
     target = (folder / BLUR_DIR / selected) if needs_blur(cfg, folder) else (folder / selected)
     target.parent.mkdir(exist_ok=True)
     Image.open(new_file).convert("RGB").save(target, quality=92)
+    if card.load_card_data(folder):  # 카드에 들어간 사진일 수 있으니 다시 그린다
+        card.render(folder, cfg)
     gr.Info(f"{selected} 사진을 바꿨습니다.")
     return gallery_items(folder, cfg), None
+
+
+def use_for_card(folder, selected, text):
+    if not folder or not selected:
+        raise gr.Error("위 사진 목록에서 카드에 넣을 사진을 먼저 클릭하세요.")
+    folder = Path(folder)
+    if not card.load_card_data(folder):
+        raise gr.Error("이 글에는 스펙 카드가 없습니다. (출고후기·차량정보 글에만 만들어요)")
+    card.set_card_photo(folder, selected)
+    card.render(folder)
+    gr.Info(f"스펙 카드 사진을 {selected}(으)로 바꿨습니다.")
+    return preview_md(str(folder), text)
 
 
 def on_select(evt: gr.SelectData, folder):
@@ -347,6 +362,7 @@ def build() -> gr.Blocks:
                     sel_note = gr.Markdown("")
                     new_photo = gr.File(label="바꿔 넣을 사진", file_types=["image"], type="filepath")
                     swap_btn = gr.Button("선택한 사진 바꾸기")
+                    card_btn = gr.Button("🪪 이 사진을 스펙 카드에 쓰기")
                 with gr.Row():
                     editor = gr.Textbox(label="글 (여기서 바로 고칠 수 있어요)", lines=28)
                     preview = gr.Markdown(label="보이는 모양", height=640)
@@ -364,6 +380,7 @@ def build() -> gr.Blocks:
                 save_btn.click(save_draft, [folder, editor], preview).then(lambda: gr.Info("저장했습니다."))
                 gallery.select(on_select, folder, [selected, sel_note])
                 swap_btn.click(replace_photo, [folder, selected, new_photo], [gallery, new_photo])
+                card_btn.click(use_for_card, [folder, selected, editor], preview)
                 upload_btn.click(upload_to_naver, [folder, editor], log)
 
             with gr.Tab("지난 글", id="history"):
