@@ -208,6 +208,44 @@ def move_thumb(folder, pos):
     return time.time()
 
 
+PREVIEW_CSS = """<style>
+.pv{max-width:560px;margin:0 auto;font-family:'Noto Sans KR','Malgun Gothic',sans-serif;color:#222;text-align:center;line-height:1.85;font-size:15px}
+.pv h1{font-size:21px;line-height:1.45;text-align:left;margin:4px 0 6px}.pv .tg{font-size:12px;color:#1c69d4;text-align:left;margin-bottom:14px}
+.pv img{width:100%;display:block;margin:12px 0;border-radius:4px}.pv p{margin:0 0 14px;white-space:pre-wrap}
+.pv blockquote{margin:26px 0 14px;border-left:4px solid #1c69d4;padding:4px 12px;font-size:17px;font-weight:700;text-align:left}
+.pv b.hd{display:block;margin:14px 0;font-size:16px}
+.pv table{border-collapse:collapse;width:100%;margin:12px 0;font-size:12.5px;line-height:1.45}.pv th,.pv td{border:1px solid #d5dbe3;padding:6px 4px}
+.pv th{background:#f3f5f8}.pv .miss{color:#c00}
+</style>"""
+
+
+def preview_html(folder, title, tags, blocks) -> str:
+    """네이버 블로그(휴대폰)에서 보이는 모양에 가깝게 글을 보여준다."""
+    if not blocks:
+        return ('<div class="pv" style="color:#888;padding:40px 0">왼쪽에 정보를 넣고 <b>✍️ 글 만들기</b>를 누르면 '
+                '여기에 완성된 글이 나와요.<br>예전 글은 [📂 지난 글]에서 불러올 수 있어요.</div>')
+    import html as h
+    cfg = load_config()
+    out = [f"<h1>{h.escape(title or '')}</h1>"]
+    tag_list = [t.strip() for t in (tags or "").split(",") if t.strip()]
+    for k, text in blocks:
+        if k == "image":
+            img = upload_image(cfg, Path(folder), text) if folder else None
+            out.append(f'<img src="/gradio_api/file={img.as_posix()}?t={int(img.stat().st_mtime)}">' if img
+                       else f'<p class="miss">⚠️ 사진 없음: {h.escape(text)}</p>')
+        elif k == "quote":
+            out.append(f"<blockquote>{h.escape(text)}</blockquote>")
+        elif k == "heading":
+            out.append(f'<b class="hd">{h.escape(text)}</b>')
+        elif k == "table":
+            out.append(post.table_html(post.table_rows(text)).replace("<p><br></p>", ""))
+        else:
+            out.append(f"<p>{h.escape(text)}</p>")
+    if tag_list and cfg.get("body_tags", True):
+        out.append(f'<p class="tg" style="text-align:center">{" ".join("#" + h.escape(t) for t in tag_list[:10])}</p>')
+    return PREVIEW_CSS + '<div class="pv">' + "".join(out) + "</div>"
+
+
 # ── 글 쓰기 ──
 
 def make_post(kind, trim, ext_color, int_color, story, photos, already_blurred):
@@ -528,58 +566,62 @@ def build() -> gr.Blocks:
                     # ② 오른쪽: 확인하고 고치기
                     with gr.Column(scale=6, min_width=520, elem_classes="panel"):
                         gr.Markdown("### ② 확인하고 고치기")
-                        gr.Markdown("고친 내용은 바로 저장돼요. 사진은 ⬆⬇로 옮기고 🗑로 빼요.", elem_classes="hint")
                         plate_note = gr.Markdown()
-                        title = gr.Textbox(label="제목")
-                        tags = gr.Textbox(label="태그 (쉼표로 구분)")
+                        with gr.Tabs(selected="preview") as view_tabs:
+                            with gr.Tab("👀 미리보기", id="preview"):
+                                prev = gr.HTML()
+                            with gr.Tab("✏️ 고치기", id="edit"):
+                                gr.Markdown("고친 내용은 바로 저장돼요. 사진은 ⬆⬇로 옮기고 🗑로 빼요.", elem_classes="hint")
+                                title = gr.Textbox(label="제목")
+                                tags = gr.Textbox(label="태그 (쉼표로 구분)")
 
-                        @gr.render(inputs=[folder, blocks], triggers=[ver.change])
-                        def draw(folder_v, blocks_v):
-                            if not blocks_v:
-                                gr.Markdown("왼쪽에 정보를 넣고 **✍️ 글 만들기**를 누르면 여기에 글이 나와요.  \n"
-                                            "예전 글은 [📂 지난 글]에서 불러올 수 있어요.", elem_classes="hint")
-                                return
-                            cfg = load_config()
-                            common_in = [folder, title, tags, blocks]
-                            common_out = [blocks, ver, unused_dd]
-                            for i, (k, text) in enumerate(blocks_v):
-                                with gr.Group(elem_classes="blk"):
-                                    if k == "image":
-                                        path = upload_image(cfg, Path(folder_v), text) if folder_v else None
-                                        label = {THUMB_FILE: "썸네일 (글 맨 처음 · 검색 대표 사진)", CARD_FILE: "스펙 카드"}.get(text, text)
-                                        if path:
-                                            gr.Image(str(path), label=f"📷 {label}", interactive=False, height=300,
-                                                     elem_classes="blk-img")
-                                        else:
-                                            gr.Markdown(f"⚠️ 사진 없음: {text}")
-                                    elif k == "table":
-                                        rows = post.table_rows(text)
-                                        df = gr.Dataframe(value=rows[1:], headers=rows[0] if rows else None, interactive=True, wrap=True,
-                                                          label=KIND_LABEL["table"], max_height=900,
-                                                          column_widths=["26%"] + [f"{74 / max(1, len(rows[0]) - 1):.0f}%"] * (len(rows[0]) - 1) if rows else None)
-                                        df.input(lambda f, t, g, b, v, i=i: set_text(f, t, g, b, i, table_text(v)), [*common_in, df], blocks)
-                                    else:
-                                        tb = gr.Textbox(text, label=KIND_LABEL.get(k, "문단"), lines={"paragraph": 3, "table": 8}.get(k, 1),
-                                                        max_lines=30, elem_classes="quote" if k == "quote" else "")
-                                        tb.blur(lambda f, t, g, b, v, i=i: set_text(f, t, g, b, i, v), [*common_in, tb], blocks)
-                                    with gr.Row(elem_classes="tools"):
-                                        up = gr.Button("⬆", size="sm")
-                                        down = gr.Button("⬇", size="sm")
-                                        rm = gr.Button("🗑 빼기", size="sm", variant="stop")
-                                        add = gr.Button("＋ 아래에 문단", size="sm")
-                                        if k == "image" and text not in (THUMB_FILE, CARD_FILE):
-                                            thumb = gr.Button("🖼 썸네일로", size="sm")
-                                            swap = gr.UploadButton("🔁 사진 바꾸기", size="sm", file_types=["image"], type="filepath")
-                                            thumb.click(lambda f, b, i=i: use_for_thumb(f, b, i), [folder, blocks], ver)
-                                            swap.upload(lambda f, b, file, i=i: replace_photo(f, b, i, file), [folder, blocks, swap], ver)
-                                    up.click(lambda f, t, g, b, i=i: move_block(f, t, g, b, i, -1), common_in, common_out)
-                                    down.click(lambda f, t, g, b, i=i: move_block(f, t, g, b, i, 1), common_in, common_out)
-                                    rm.click(lambda f, t, g, b, i=i: remove_block(f, t, g, b, i), common_in, common_out)
-                                    add.click(lambda f, t, g, b, i=i: add_text_below(f, t, g, b, i), common_in, common_out)
+                                @gr.render(inputs=[folder, blocks], triggers=[ver.change])
+                                def draw(folder_v, blocks_v):
+                                    if not blocks_v:
+                                        gr.Markdown("왼쪽에 정보를 넣고 **✍️ 글 만들기**를 누르면 여기에 글이 나와요.  \n"
+                                                    "예전 글은 [📂 지난 글]에서 불러올 수 있어요.", elem_classes="hint")
+                                        return
+                                    cfg = load_config()
+                                    common_in = [folder, title, tags, blocks]
+                                    common_out = [blocks, ver, unused_dd]
+                                    for i, (k, text) in enumerate(blocks_v):
+                                        with gr.Group(elem_classes="blk"):
+                                            if k == "image":
+                                                path = upload_image(cfg, Path(folder_v), text) if folder_v else None
+                                                label = {THUMB_FILE: "썸네일 (글 맨 처음 · 검색 대표 사진)", CARD_FILE: "스펙 카드"}.get(text, text)
+                                                if path:
+                                                    gr.Image(str(path), label=f"📷 {label}", interactive=False, height=300,
+                                                             elem_classes="blk-img")
+                                                else:
+                                                    gr.Markdown(f"⚠️ 사진 없음: {text}")
+                                            elif k == "table":
+                                                rows = post.table_rows(text)
+                                                df = gr.Dataframe(value=rows[1:], headers=rows[0] if rows else None, interactive=True, wrap=True,
+                                                                  label=KIND_LABEL["table"], max_height=900,
+                                                                  column_widths=["26%"] + [f"{74 / max(1, len(rows[0]) - 1):.0f}%"] * (len(rows[0]) - 1) if rows else None)
+                                                df.input(lambda f, t, g, b, v, i=i: set_text(f, t, g, b, i, table_text(v)), [*common_in, df], blocks)
+                                            else:
+                                                tb = gr.Textbox(text, label=KIND_LABEL.get(k, "문단"), lines={"paragraph": 3, "table": 8}.get(k, 1),
+                                                                max_lines=30, elem_classes="quote" if k == "quote" else "")
+                                                tb.blur(lambda f, t, g, b, v, i=i: set_text(f, t, g, b, i, v), [*common_in, tb], blocks)
+                                            with gr.Row(elem_classes="tools"):
+                                                up = gr.Button("⬆", size="sm")
+                                                down = gr.Button("⬇", size="sm")
+                                                rm = gr.Button("🗑 빼기", size="sm", variant="stop")
+                                                add = gr.Button("＋ 아래에 문단", size="sm")
+                                                if k == "image" and text not in (THUMB_FILE, CARD_FILE):
+                                                    thumb = gr.Button("🖼 썸네일로", size="sm")
+                                                    swap = gr.UploadButton("🔁 사진 바꾸기", size="sm", file_types=["image"], type="filepath")
+                                                    thumb.click(lambda f, b, i=i: use_for_thumb(f, b, i), [folder, blocks], ver)
+                                                    swap.upload(lambda f, b, file, i=i: replace_photo(f, b, i, file), [folder, blocks, swap], ver)
+                                            up.click(lambda f, t, g, b, i=i: move_block(f, t, g, b, i, -1), common_in, common_out)
+                                            down.click(lambda f, t, g, b, i=i: move_block(f, t, g, b, i, 1), common_in, common_out)
+                                            rm.click(lambda f, t, g, b, i=i: remove_block(f, t, g, b, i), common_in, common_out)
+                                            add.click(lambda f, t, g, b, i=i: add_text_below(f, t, g, b, i), common_in, common_out)
 
-                        with gr.Row():
-                            unused_dd = gr.Dropdown(label="뺐던 사진 다시 넣기", scale=3)
-                            add_btn = gr.Button("＋ 넣기", scale=1)
+                                with gr.Row():
+                                    unused_dd = gr.Dropdown(label="뺐던 사진 다시 넣기", scale=3)
+                                    add_btn = gr.Button("＋ 넣기", scale=1)
                         with gr.Row():
                             queue_btn = gr.Button("⏰ 아침 8:30~9:30에 올리기", variant="primary", elem_id="queue-btn", scale=2)
                             upload_btn = gr.Button("📤 지금 바로 올리기", scale=1)
@@ -593,13 +635,16 @@ def build() -> gr.Blocks:
                             log = gr.Textbox(label="진행 기록", lines=6, interactive=False)
 
                 OPEN = [folder, plate_note, title, tags, blocks, ver, log, unused_dd]
+                ver.change(preview_html, [folder, title, tags, blocks], prev)
+                blocks.change(preview_html, [folder, title, tags, blocks], prev)
                 trim.change(price_of, trim, price)
                 make_btn.click(make_post, [kind, trim, ext_color, int_color, story, photos, already], OPEN)
                 redo_btn.click(rewrite, folder, OPEN)
                 cards_btn.click(add_cards_only, [folder, title, tags, blocks], OPEN)
                 tables_btn.click(new_tables, [folder, title, tags, blocks], OPEN)
                 for box in (title, tags):
-                    box.blur(lambda f, t, g, b: store(f, t, g, b) if f else None, [folder, title, tags, blocks], None)
+                    box.blur(lambda f, t, g, b: store(f, t, g, b) if f else None, [folder, title, tags, blocks], None).then(
+                        preview_html, [folder, title, tags, blocks], prev)
                 add_btn.click(add_photo, [folder, title, tags, blocks, unused_dd], [blocks, ver, unused_dd])
                 thumb_pos.release(move_thumb, [folder, thumb_pos], ver)
                 upload_btn.click(upload_to_naver, [folder, title, tags, blocks], log)

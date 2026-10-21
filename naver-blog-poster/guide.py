@@ -337,7 +337,8 @@ def price_rows(section: str) -> list[list[str]]:
         else:
             base, col = name, 1
         rows.setdefault(base, [base, "", ""])[col] = best[1]
-    return list(rows.values())
+    num = lambda r: int((r[1] or r[2] or "0").replace(",", ""))
+    return sorted(rows.values(), key=num)  # 싼 트림부터
 
 
 def price_month() -> str:
