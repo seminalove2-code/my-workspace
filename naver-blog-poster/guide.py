@@ -72,6 +72,10 @@ SYSTEM = """당신은 네이버 블로그 글을 쓰는 작가입니다. <style>
 - 제원 소제목 바로 아래에는 프로그램이 <specs> 전체를 네이버 표로 넣습니다. 그 아래 문단에는 표를 그대로 옮기지 말고 눈여겨볼 점 2~3줄만 씁니다.
 - 썸네일은 프로그램이 맨 앞에 넣으므로 blocks 에 넣지 않습니다. 첫 블록은 인사말 문단입니다.
 - 네이버 모바일에서 읽기 좋게 한 줄을 짧게 끊고 가운데 정렬에 어울리게 씁니다. 분량은 1,500~2,500자.
+- 독자는 대부분 휴대폰으로 봅니다. paragraph 의 한 줄은 공백 포함 18자 안팎(휴대폰 한 줄)으로 짧게 끊고, 한 문단은 2~4줄로 씁니다.
+  긴 문장은 두 문장으로 나눕니다. 숫자·단위(예: 1,835kg)가 줄 끝에서 잘리지 않게 끊습니다.
+- "자료에 안내되어 있어요", "제원이 확인되는", "참고하시면 됩니다"처럼 문서를 읽어주는 말투는 쓰지 않습니다. 딜러가 고객에게 직접 말하듯 씁니다.
+  (예: "0-100km/h 7.3초라 고속도로 합류가 편해요")
 - tags 는 # 없이 띄어쓰기 없는 단어 10개 안팎."""
 
 
@@ -411,12 +415,32 @@ def interior_html(series: str, d: dict, cfg: dict) -> str:
     return _page(f"{kname(series)} 시트 · 휠", "트림마다 들어가는 시트와 휠이 달라요", "".join(sections), cfg, "white")
 
 
+# 휴대폰에서 읽기 좋게 줄인 제원표: (항목 이름에 들어 있는 말, 표에 쓸 이름, 값 줄이기)
+COMPACT = [
+    ("전장", "전장 (mm)", None), ("전폭", "전폭 (mm)", None), ("전고", "전고 (mm)", None), ("휠베이스", "휠베이스 (mm)", None),
+    ("종류", "엔진", lambda v: re.sub(r"\s*\((MHEV|PHEV)\)", r" \1", v.replace("직렬 ", ""))),
+    ("최고 출력", "최고 출력 (마력)", lambda v: v.split("/")[0]),
+    ("최대 토크", "최대 토크 (kg.m)", lambda v: v.split("/")[0]),
+    ("구동", "구동", lambda v: v.replace(" 구동", "")),
+    ("0-100", "0-100km/h (초)", None),
+    ("최고 속도", "최고 속도 (km/h)", None),
+    ("1회 충전", "전기 주행 (km)", None),
+    ("공차", "공차 중량 (kg)", None),
+    ("복합 연비", "복합 연비 (km/L)", lambda v: v.split(" ")[0].split("(")[0]),
+    ("트렁크", "트렁크 (L)", None),
+]
+
+
 def spec_tables(d: dict) -> list[str]:
-    """Approach Book 제원표 → 네이버 표로 넣을 '| 칸 | 칸 |' 글. 같은 값이 이어지는 칸은 올릴 때 합쳐진다."""
+    """Approach Book 제원표 → 글에 넣을 '| 칸 | 칸 |' 표. 휴대폰에서 읽기 좋게 핵심 항목만, 값은 짧게."""
     out = []
     for t in d.get("specs", []):
         lines = ["| 구분 | " + " | ".join(t["models"]) + " |"]
-        lines += ["| " + label + " | " + " | ".join(v.replace("|", "/") for v in vals) + " |" for label, vals in t["rows"]]
+        for word, name, short in COMPACT:
+            row = next((vals for label, vals in t["rows"] if word in label), None)
+            if row:
+                vals = [(short(v) if short else v).strip().replace("|", "/") for v in row]
+                lines.append(f"| {name} | " + " | ".join(vals) + " |")
         out.append("\n".join(lines))
     return out
 

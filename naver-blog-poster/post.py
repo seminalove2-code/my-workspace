@@ -134,10 +134,12 @@ def table_html(rows: list[list[str]]) -> str:
     return "<table><tbody>" + "".join(out) + "</tbody></table><p><br></p>"
 
 
-TABLE_CSS = """*{box-sizing:border-box;margin:0}body{width:1080px;background:#fff;padding:28px 30px;
+# 휴대폰 화면 폭(약 400px)으로 줄어들어도 읽히게 글씨를 크게
+TABLE_CSS = """*{box-sizing:border-box;margin:0}body{width:1080px;background:#fff;padding:24px 20px;
 font-family:'Noto Sans KR','Malgun Gothic',sans-serif;color:#14213d}
-table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:1px solid #cfd6e0;padding:13px 6px;text-align:center;font-size:23px}
-th{background:#e6eefb;color:#16418f;font-weight:700}tr th:first-child{background:#f3f5f8;color:#14213d;width:230px;font-size:21px}"""
+table{border-collapse:collapse;width:100%;table-layout:fixed}th,td{border:2px solid #cfd6e0;padding:20px 6px;text-align:center;font-size:36px;line-height:1.3}
+th{background:#e6eefb;color:#16418f;font-weight:700}tr th:first-child{background:#f3f5f8;color:#14213d;width:300px;font-size:31px}
+td{font-weight:500}"""
 
 
 def table_image(folder: Path, rows: list[list[str]], n: int) -> Path:
@@ -166,10 +168,14 @@ def _paste(page: Page, html_text: str, plain: str) -> None:
     page.keyboard.press("Control+V")
 
 
-def insert_table(page: Page, ed: FrameLocator, text: str, folder: Path, n: int = 1) -> None:
-    """네이버 표로 넣는다 (클립보드 붙여넣기). 표가 안 생기면 같은 표를 그림으로 만들어 넣는다."""
+def insert_table(page: Page, ed: FrameLocator, text: str, folder: Path, n: int = 1, cfg: dict | None = None) -> None:
+    """표 넣기. 기본은 그림 (네이버 표는 휴대폰에서 옆으로 잘려 보여서).
+    config 의 table_mode 가 "naver" 이면 네이버 표로 붙여넣고, 안 되면 그림으로."""
     rows = table_rows(text)
     if not rows:
+        return
+    if (cfg or {}).get("table_mode", "image") != "naver":
+        insert_image(page, ed, table_image(folder, rows, n))
         return
     before = ed.locator(SEL["table_component"]).count()
     wrap = ed.locator(".se-components-wrap").first
@@ -217,7 +223,7 @@ def fill_editor(page: Page, ed: FrameLocator, cfg: dict, folder: Path, draft: Dr
             insert_quote(page, ed, block.text)
             continue
         if block.kind == "table":
-            insert_table(page, ed, block.text, folder, i)
+            insert_table(page, ed, block.text, folder, i, cfg)
             continue
         if block.kind == "heading":
             insert_heading(page, block.text)
