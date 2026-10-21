@@ -192,6 +192,7 @@ def generate(cfg: dict, folder: Path) -> None:
             print(f"[주의] 스펙 카드를 만들지 못했습니다: {e}")
     # 이 차종 총정리 글이 발행돼 있으면 그 글로 가는 안내를 붙인다
     import guide  # guide 가 generate 를 쓰므로 여기서 불러온다
+    guide.sync_urls(cfg)  # 그사이 발행된 총정리 글 주소 채우기
     if link := guide.link_for(read_text(folder / TOPIC_FILE), cfg):
         blocks.append(Block("paragraph", link))
     # 상담 안내는 AI가 아니라 설정 그대로 붙인다 (연락처 오타 방지)

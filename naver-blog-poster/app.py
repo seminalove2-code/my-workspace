@@ -316,6 +316,24 @@ def new_tables(folder, title, tags, blocks):
     return opened(Path(folder))
 
 
+def add_guide_link(folder, title, tags, blocks):
+    """이미 만든 글 끝(상담 안내 앞)에 그 차종 총정리 글 링크를 넣는다."""
+    if not folder:
+        raise gr.Error("먼저 글을 만들거나 [지난 글]에서 불러오세요.")
+    cfg = load_config()
+    guide.sync_urls(cfg)
+    link = guide.link_for((Path(folder) / TOPIC_FILE).read_text(encoding="utf-8-sig"), cfg)
+    if not link:
+        raise gr.Error("이 차종의 발행된 총정리 글 주소가 없어요. [📚 총정리 글] 탭에서 주소를 넣어주세요.")
+    url = link.splitlines()[3]  # 넷째 줄이 총정리 글 주소
+    if any(url in t for _, t in blocks):
+        raise gr.Error("이미 링크가 들어가 있어요.")
+    at = next((i for i, (k, t) in enumerate(blocks) if k == "paragraph" and t.startswith("━")), len(blocks))
+    blocks.insert(at, ["paragraph", link])
+    gr.Info("상담 안내 바로 위에 총정리 글 링크를 넣었어요.")
+    return changed(folder, title, tags, blocks)
+
+
 def upload_to_naver(folder, title, tags, blocks):
     store(folder, title, tags, blocks)
     folder = Path(folder)
@@ -344,7 +362,8 @@ def guide_view(series=None):
     names = [r[1] for r in rows]
     series = series if series in names else (guide.next_series() or (names[0] if names else None))
     return (rows, gr.Dropdown(choices=names, value=series), guide.review_items(series) if series else [],
-            task_schedule.status() if sys.platform == "win32" else "윈도우에서만 켤 수 있어요")
+            task_schedule.status() if sys.platform == "win32" else "윈도우에서만 켤 수 있어요",
+            gr.Dropdown(choices=[(guide.kname(n), n) for n in names]), url_note())
 
 
 def guide_extract(pdf):
@@ -390,11 +409,26 @@ def guide_thumb(series, photo):
 
 
 def guide_url(series, url):
-    if not series or not url.strip().startswith("http"):
-        raise gr.Error("차종을 고르고 글 주소(https://blog.naver.com/...)를 붙여넣으세요.")
+    url = url.strip().split("?")[0]
+    if not series:
+        raise gr.Error("차종을 고르세요.")
+    if not re.match(r"https?://(m\.)?blog\.naver\.com/", url):
+        raise gr.Error("네이버 블로그 글 주소(https://blog.naver.com/...)를 붙여넣으세요.")
     guide.set_url(series, url)
     gr.Info(f"이제 {guide.kname(series)} 출고후기 끝에 총정리 글 링크가 붙어요.")
-    return guide.status_rows(), ""
+    return guide.status_rows(), "", url_note()
+
+
+def url_note() -> str:
+    rec = guide.load_records()
+    done = [f"{guide.kname(s)} ✅" for s in guide.order() if str(rec.get(s, {}).get("url", "")).startswith("http")]
+    return "주소가 있는 차종: " + (", ".join(done) if done else "아직 없음")
+
+
+def find_urls():
+    found, log = run_captured(guide.sync_urls, load_config())
+    gr.Info(f"{len(found)}개 차종의 글 주소를 찾았어요." if found else "새로 찾은 글이 없어요. 발행 직후라면 몇 분 뒤 다시 눌러보세요.")
+    return guide.status_rows(), url_note()
 
 
 def guide_schedule(on, at):
@@ -631,6 +665,7 @@ def build() -> gr.Blocks:
                                 redo_btn = gr.Button("🔄 AI가 처음부터 다시 쓰기")
                                 cards_btn = gr.Button("🖼 썸네일·스펙 카드만 넣기")
                                 tables_btn = gr.Button("📊 제원표만 새로 넣기 (총정리)")
+                                link_btn = gr.Button("🔗 총정리 글 링크 넣기 (출고후기)")
                             thumb_pos = gr.Slider(0, 100, value=75, step=5, label="썸네일 사진 위치 (작게: 위쪽 · 크게: 아래쪽)")
                             log = gr.Textbox(label="진행 기록", lines=6, interactive=False)
 
@@ -642,6 +677,7 @@ def build() -> gr.Blocks:
                 redo_btn.click(rewrite, folder, OPEN)
                 cards_btn.click(add_cards_only, [folder, title, tags, blocks], OPEN)
                 tables_btn.click(new_tables, [folder, title, tags, blocks], OPEN)
+                link_btn.click(add_guide_link, [folder, title, tags, blocks], [blocks, ver, unused_dd])
                 for box in (title, tags):
                     box.blur(lambda f, t, g, b: store(f, t, g, b) if f else None, [folder, title, tags, blocks], None).then(
                         preview_html, [folder, title, tags, blocks], prev)
@@ -653,6 +689,17 @@ def build() -> gr.Blocks:
             with gr.Tab("📚 총정리 글", id="guide"):
                 gr.Markdown("차종별 **색상·트림·가격 총정리** 글을 하루 한 편씩 써요. "
                             "출고후기 끝에 그 차종 총정리 글 링크가 자동으로 붙어요.")
+                with gr.Column(elem_classes="panel"):
+                    gr.Markdown("### 🔗 발행한 총정리 글 주소 (출고후기 링크에 쓰여요)")
+                    gr.Markdown("직접 발행하거나 예약 발행한 글은 프로그램을 켤 때 블로그에서 **저절로 찾아요.** "
+                                "안 찾아지면 아래에 직접 넣으세요.", elem_classes="hint")
+                    with gr.Row():
+                        g_url_series = gr.Dropdown(label="차종", filterable=True, scale=2)
+                        g_url = gr.Textbox(label="글 주소 (https://blog.naver.com/hotpickconnect/...)", scale=4)
+                    with gr.Row():
+                        g_url_btn = gr.Button("💾 주소 저장", variant="primary")
+                        g_find_btn = gr.Button("🔍 블로그에서 지금 찾기")
+                    g_url_note = gr.Markdown()
                 with gr.Row(equal_height=False):
                     with gr.Column(scale=1, elem_classes="panel"):
                         gr.Markdown("### ① 처음 한 번: 사진 뽑기")
@@ -682,23 +729,22 @@ def build() -> gr.Blocks:
                 with gr.Column(elem_classes="panel"):
                     gr.Markdown("### 진행 상황")
                     g_table = gr.Dataframe(headers=["순서", "차종", "이름", "상태", "글 주소"], interactive=False)
-                    with gr.Row():
-                        g_url = gr.Textbox(label="임시저장 글을 직접 발행했다면 그 글 주소 (위에서 차종 선택)", scale=3)
-                        g_url_btn = gr.Button("주소 저장", scale=1)
-                        g_refresh = gr.Button("새로고침", scale=1)
+                    g_refresh = gr.Button("새로고침")
                     with gr.Row():
                         g_cat = gr.Textbox(label="블로그 'BMW차량정보' 카테고리 주소 (넣으면 출고후기에 '다른 차종도 전부 정리해 뒀어요' 링크도 붙어요)",
                                            value=lambda: load_config().get("guide_category_url", ""), scale=4)
                         g_cat_btn = gr.Button("카테고리 주소 저장", scale=1)
 
-                g_view = [g_table, g_series, g_gallery, g_sched]
+                g_view = [g_table, g_series, g_gallery, g_sched, g_url_series, g_url_note]
                 g_extract_btn.click(guide_extract, g_pdf, [g_log, *g_view]).then(book_note, None, g_book)
                 g_series.input(lambda s: guide.review_items(s), g_series, g_gallery)
                 g_thumb_btn.click(guide_thumb, [g_series, g_thumb], g_thumb)
                 g_make_btn.click(guide_make, g_series, [*OPEN, tabs])
                 g_on.click(lambda t: guide_schedule(True, t), g_time, g_sched)
                 g_off.click(lambda t: guide_schedule(False, t), g_time, g_sched)
-                g_url_btn.click(guide_url, [g_series, g_url], [g_table, g_url])
+                g_url_btn.click(guide_url, [g_url_series, g_url], [g_table, g_url, g_url_note])
+                g_url_series.input(lambda s: str(guide.load_records().get(s, {}).get("url", "")) if s else "", g_url_series, g_url)
+                g_find_btn.click(find_urls, None, [g_table, g_url_note])
                 g_refresh.click(guide_view, g_series, g_view)
                 g_cat_btn.click(save_category_url, g_cat, None)
 
@@ -782,7 +828,7 @@ def open_window(url: str) -> None:
 
 if __name__ == "__main__":
     load_dotenv(ROOT / ".env")
-    threading.Thread(target=guide.refresh_if_needed, daemon=True).start()
+    threading.Thread(target=lambda: (guide.refresh_if_needed(), guide.sync_urls(load_config())), daemon=True).start()
     port = free_port()
     url = f"http://127.0.0.1:{port}"
     if "--no-window" not in sys.argv:

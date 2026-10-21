@@ -592,6 +592,42 @@ def set_url(series: str, url: str) -> None:
     save_records(rec)
 
 
+def _norm(title: str) -> str:
+    return re.sub(r"[\s|｜·,()]", "", title or "")
+
+
+def sync_urls(cfg: dict, log=print) -> list[tuple[str, str]]:
+    """블로그 RSS(최근 발행 글 목록)에서 총정리 글을 찾아 주소를 저절로 채운다.
+    임시저장·예약 발행 글은 공개된 뒤에야 RSS 에 나오므로, 발행 후 다음에 켤 때 채워진다."""
+    import urllib.request
+    import xml.etree.ElementTree as ET
+    from common import read_draft
+    try:
+        with urllib.request.urlopen(f"https://rss.blog.naver.com/{cfg['blog_id']}.xml", timeout=8) as r:
+            items = [(it.findtext("title") or "", (it.findtext("link") or "").split("?")[0])
+                     for it in ET.fromstring(r.read()).iter("item")]
+    except Exception as e:
+        log(f"[주의] 블로그 글 목록을 못 읽었습니다: {e}")
+        return []
+    rec, found = load_records(), []
+    for s in order():
+        if str(rec.get(s, {}).get("url", "")).startswith("http"):
+            continue
+        folders = [POSTS_DIR / rec[s]["folder"]] if rec.get(s, {}).get("folder") else []
+        folders += sorted(POSTS_DIR.glob(f"*_총정리_{safe(s)}"), reverse=True)
+        titles = {_norm(read_draft(f / DRAFT_FILE).title) for f in folders if (f / DRAFT_FILE).exists()}
+        url = next((u for t, u in items if _norm(t) in titles), "")
+        if not url and not titles:  # 프로그램 밖에서 쓴 총정리 글: 제목에 차종 이름 + '총정리'
+            url = next((u for t, u in items if "총정리" in t and re.search(rf"(?<![A-Za-z0-9]){re.escape(kname(s))}(?![A-Za-z0-9])", t)), "")
+        if url:
+            rec.setdefault(s, {"date": f"{date.today()}", "folder": ""})["url"] = url
+            found.append((s, url))
+    if found:
+        save_records(rec)
+        log("[총정리] 블로그에서 글 주소를 찾았습니다: " + ", ".join(f"{kname(s)} {u}" for s, u in found))
+    return found
+
+
 def publish_now(cfg: dict) -> bool:
     """처음 guide_review_count 편(기본 3편)은 임시저장, 그 뒤로는 바로 발행."""
     if not cfg.get("guide_publish", True):
@@ -634,7 +670,8 @@ def link_for(memo: str, cfg: dict | None = None) -> str:
         url = str(rec.get(s, {}).get("url", ""))
         if url.startswith("http"):
             name = kname(s)
-            lines = [f"🔎 {name} 고민 중이시라면, 트림·색상을 전부 보고 고르시는 게 제일 후회 없어요!",
+            lines = [f"🔎 {name} 관심 있으신 분들은 여기 한 번 들어가 보세요!",
+                     "트림·색상을 전부 보고 고르시는 게 제일 후회 없어요 😊",
                      f"{name} 색상·트림·가격 한눈에 보기 →", url]
             more = str((cfg or {}).get("guide_category_url") or "").strip()
             if more.startswith("http"):
@@ -663,6 +700,7 @@ def run_daily(cfg: dict, wait: bool = False, log=print) -> None:
     """매일 아침 한 번: 예약해 둔 글(출고후기 등)을 올리고, 오늘 아직 안 썼으면 다음 차종 총정리 한 편을 쓰고 올린다."""
     import post
     refresh_if_needed(log)
+    sync_urls(cfg, log)
     today = f"{date.today()}"
     guide_done = any(r.get("date") == today for r in load_records().values())
     series = None if guide_done else next_series()
