@@ -1,4 +1,6 @@
 anthropic>=1.17.0
+openai>=3.35.0
+google-genai>=2.32.0
 pydantic>=2
 pyyaml
 python-dotenv

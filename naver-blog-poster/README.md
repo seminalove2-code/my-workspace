@@ -1,6 +1,6 @@
 # 네이버 블로그 자동포스팅 (나만 쓰는 용도)
 
-사진과 메모를 폴더에 넣으면, AI(Claude)가 **잘 되는 레퍼런스 글과 같은 구조로** 글을 쓰고 내 PC의 브라우저로 네이버 블로그에 올려 줍니다.
+사진과 메모를 폴더에 넣으면, AI(OpenAI, Claude, Gemini 중 선택)가 **잘 되는 레퍼런스 글과 같은 구조로** 글을 쓰고 내 PC의 브라우저로 네이버 블로그에 올려 줍니다.
 
 ```
 레퍼런스 글 저장 ─→ 글 폴더 만들기(메모+사진) ─→ write.bat(AI 글쓰기) ─→ draft.md 확인 ─→ post.bat(발행)
@@ -13,8 +13,13 @@
 1. **파이썬 설치**: <https://www.python.org/downloads/> 에서 설치합니다. 첫 화면의 **"Add python.exe to PATH"를 꼭 체크**하세요.
 2. 이 폴더(`naver-blog-poster`)를 PC에 받습니다. (GitHub에서 `Code → Download ZIP` 후 압축 풀기, 또는 `git clone`)
 3. **`setup.bat`** 을 더블클릭합니다. 필요한 프로그램이 자동으로 설치됩니다.
-4. **API 키 넣기**: <https://console.anthropic.com> 에서 API 키를 발급받고, 폴더 안의 `.env` 파일을 메모장으로 열어 `ANTHROPIC_API_KEY=` 뒤에 붙여넣습니다.
-5. **`config.yaml`** 을 메모장으로 열어 `blog_id` 를 내 블로그 아이디로 바꿉니다. (`blog.naver.com/아이디`의 아이디 부분)
+4. **API 키 넣기**: 폴더 안의 `.env` 파일을 메모장으로 열어, 쓰는 회사의 키를 붙여넣습니다.
+   - OpenAI: `OPENAI_API_KEY=` 뒤에 (<https://platform.openai.com/api-keys>)
+   - Claude: `ANTHROPIC_API_KEY=` 뒤에 (<https://console.anthropic.com>)
+   - Gemini: `GEMINI_API_KEY=` 뒤에 (<https://aistudio.google.com/apikey>)
+5. **AI 고르기**: `config.yaml` 의 `ai: "openai"` 를 `claude` / `openai` / `gemini` 중 하나로 둡니다. (지금은 openai)
+   - **`models.bat`** 을 실행하면 내 키로 쓸 수 있는 모델 이름이 나옵니다. `config.yaml` 의 `models:` 아래 이름이 목록에 없으면 목록에 있는 이름으로 바꾸세요.
+   - 블로그 아이디(`hotpickconnect`)와 카테고리는 이미 설정되어 있습니다.
 6. **`login.bat`** 을 실행하면 브라우저가 열립니다. 네이버에 직접 로그인(‘로그인 상태 유지’ 체크)한 뒤 검은 창에서 Enter를 누르세요.
    - 비밀번호는 프로그램에 저장되지 않습니다. 로그인 상태만 `browser_profile` 폴더에 남습니다.
    - 로그인이 풀리면 `login.bat` 만 다시 실행하면 됩니다.
@@ -109,7 +114,7 @@ AI는 `data/가격표.txt`에 있는 판매가격과 사양만 글에 씁니다.
 ## 주의사항
 
 - **조금씩 올리세요.** 하루에 많은 글을 기계적으로 올리면 저품질 블로그로 판정되거나 계정이 제한될 수 있습니다. 개인 용도로 하루 1~3개 정도를 권합니다.
-- **AI 비용**: 글 1편에 보통 수백 원 정도입니다. (사진 수와 레퍼런스 길이에 따라 다름) <https://console.anthropic.com> 에서 사용량을 볼 수 있습니다.
+- **AI 비용**: 글 1편에 보통 수백 원 정도입니다. (사진 수와 레퍼런스 길이에 따라 다름) 사용량은 각 회사 사이트(OpenAI / Anthropic 콘솔 / Google AI Studio)에서 볼 수 있습니다.
 - **네이버 화면이 바뀌면** 입력이 실패할 수 있습니다. `post.py` 맨 위의 `SEL` 부분(버튼 위치 정보)만 고치면 됩니다. Claude에게 `logs/` 의 캡처를 보여주며 고쳐달라고 하면 됩니다.
 - `posts/`, `references/`, `.env`, `browser_profile/` 은 GitHub에 올라가지 않도록 설정되어 있습니다.
 
@@ -119,6 +124,7 @@ AI는 `data/가격표.txt`에 있는 판매가격과 사양만 글에 씁니다.
 |------|------|
 | `config.yaml` | 블로그 아이디, 카테고리, 발행/임시저장, AI 말투 규칙 |
 | `generate.py` / `write.bat` | 메모+사진+레퍼런스로 `draft.md` 작성 |
+| `ai_providers.py` / `models.py` / `models.bat` | AI 회사 연결(Claude, OpenAI, Gemini), 쓸 수 있는 모델 확인 |
 | `post.py` / `post.bat` / `test_post.bat` | 스마트에디터에 입력하고 발행 |
 | `fetch_reference.py` / `fetch_reference.bat` | 블로그 글 주소로 레퍼런스 저장 |
 | `login.py` / `login.bat` | 네이버 로그인 상태 저장 |

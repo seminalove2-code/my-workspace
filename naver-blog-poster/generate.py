@@ -4,17 +4,16 @@
   python generate.py             # 아직 draft.md 가 없는 모든 글 폴더
   python generate.py 글폴더이름    # 특정 폴더만 (기존 draft.md 덮어씀)
 """
-import base64
 import io
 import re
 import sys
 from pathlib import Path
 from typing import Literal
 
-import anthropic
 from dotenv import load_dotenv
 from PIL import Image
-from pydantic import BaseModel
+
+import ai_providers
 
 from common import (DRAFT_FILE, REFERENCE_FILE, REFERENCES_DIR, ROOT, TOPIC_FILE,
                     Block, Draft, list_images, load_config, post_folders, post_kind,
@@ -26,17 +25,6 @@ DATA_DIR = ROOT / "data"
 PRICE_FILE = DATA_DIR / "가격표.txt"
 KEYWORD_FILE = DATA_DIR / "키워드.txt"
 GUIDE_DIR = DATA_DIR / "글종류"
-
-
-class AIBlock(BaseModel):
-    kind: Literal["heading", "quote", "paragraph", "image"]
-    text: str  # image 이면 사진 파일 이름
-
-
-class AIDraft(BaseModel):
-    title: str
-    tags: list[str]
-    blocks: list[AIBlock]
 
 
 SYSTEM = """당신은 네이버 블로그 글을 쓰는 작가입니다.
@@ -77,14 +65,14 @@ SYSTEM = """당신은 네이버 블로그 글을 쓰는 작가입니다.
 - tags 에는 # 없이 단어만 넣습니다."""
 
 
-def encode_image(path: Path) -> tuple[str, str]:
+def encode_image(path: Path) -> bytes:
     img = Image.open(path)
     img.thumbnail((MAX_SIDE, MAX_SIDE))
     if img.mode not in ("RGB", "L"):
         img = img.convert("RGB")
     buf = io.BytesIO()
     img.save(buf, format="JPEG", quality=85)
-    return "image/jpeg", base64.standard_b64encode(buf.getvalue()).decode()
+    return buf.getvalue()
 
 
 def load_references(folder: Path) -> list[str]:
@@ -130,28 +118,27 @@ def find_prices(memo: str) -> str:
     return header.strip() + "\n\n" + "\n\n".join(picked) if picked else ""
 
 
-def build_content(folder: Path, images: list[Path], references: list[str], cfg: dict) -> list[dict]:
-    content: list[dict] = []
+def build_content(folder: Path, images: list[Path], references: list[str], cfg: dict) -> list[tuple[str, object]]:
+    content: list[tuple[str, object]] = []
     for i, ref in enumerate(references, 1):
-        content.append({"type": "text", "text": f'<reference index="{i}">\n{ref}\n</reference>'})
+        content.append(("text", f'<reference index="{i}">\n{ref}\n</reference>'))
     for img in images:
-        media_type, data = encode_image(img)
-        content.append({"type": "text", "text": f"사진 파일 이름: {img.name}"})
-        content.append({"type": "image", "source": {"type": "base64", "media_type": media_type, "data": data}})
+        content.append(("text", f"사진 파일 이름: {img.name}"))
+        content.append(("image", encode_image(img)))
     memo = read_text(folder / TOPIC_FILE)
     prices = find_prices(memo) or "(가격표에 이 차종이 없습니다. 가격은 쓰지 마세요.)"
     guide = read_text(GUIDE_DIR / f"{post_kind(folder)}.txt")
-    content.append({"type": "text", "text":
+    content.append(("text",
         f"<style>\n{cfg.get('style', '')}\n</style>\n\n"
         f"<guide>\n{guide}\n</guide>\n\n"
         f"<keywords>\n{read_text(KEYWORD_FILE)}\n</keywords>\n\n"
         f"<prices>\n{prices}\n</prices>\n\n"
         f"<memo>\n{memo}\n</memo>\n\n"
-        "위 메모와 사진으로 블로그 글을 써주세요."})
+        "위 메모와 사진으로 블로그 글을 써주세요."))
     return content
 
 
-def generate(client: anthropic.Anthropic, cfg: dict, folder: Path) -> None:
+def generate(cfg: dict, folder: Path) -> None:
     if not (folder / TOPIC_FILE).exists():
         print(f"[건너뜀] {folder.name}: {TOPIC_FILE} 이 없습니다.")
         return
@@ -161,25 +148,12 @@ def generate(client: anthropic.Anthropic, cfg: dict, folder: Path) -> None:
         print(f"[주의] {PRICE_FILE.relative_to(ROOT)} 가 없어 가격 없이 씁니다.")
     if not references:
         print("[주의] 레퍼런스 글이 없습니다. references 폴더에 .txt 를 넣으면 그 구조를 따라 씁니다.")
-    print(f"[작성 중] {folder.name} (사진 {len(images)}장, 레퍼런스 {len(references)}개)")
+    print(f"[작성 중] {folder.name} ({ai_providers.provider(cfg)} {ai_providers.model(cfg)}, 사진 {len(images)}장, 레퍼런스 {len(references)}개)")
 
-    response = client.beta.messages.parse(
-        model=cfg.get("model", "claude-opus-5-5"),
-        max_tokens=16000,
-        output_config={"effort": cfg.get("effort", "medium")},
-        # 안전 필터에 걸리면 다른 모델로 자동 재시도
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        system=SYSTEM,
-        messages=[{"role": "user", "content": build_content(folder, images, references, cfg)}],
-        output_format=AIDraft,
-    )
-    if response.stop_reason == "refusal":
-        print(f"[실패] {folder.name}: AI가 이 글 작성을 거절했습니다. 메모 내용을 확인해 주세요.")
-        return
-    ai = response.parsed_output
-    if ai is None:
-        print(f"[실패] {folder.name}: 응답을 읽지 못했습니다 (stop_reason={response.stop_reason}).")
+    try:
+        ai = ai_providers.write(cfg, SYSTEM, build_content(folder, images, references, cfg))
+    except ai_providers.AIError as e:
+        print(f"[실패] {folder.name}: {e}")
         return
 
     # 없는 사진 이름은 빼고, 빠진 사진은 끝에 붙인다
@@ -200,7 +174,6 @@ def generate(client: anthropic.Anthropic, cfg: dict, folder: Path) -> None:
 def main() -> None:
     load_dotenv(ROOT / ".env")
     cfg = load_config()
-    client = anthropic.Anthropic()
     if len(sys.argv) > 1:
         folders = [resolve_folder(sys.argv[1])]
     else:
@@ -208,12 +181,7 @@ def main() -> None:
         if not folders:
             print("새로 쓸 글이 없습니다. posts 폴더에 글 폴더(topic.txt + 사진)를 만들어 주세요.")
     for folder in folders:
-        try:
-            generate(client, cfg, folder)
-        except anthropic.AuthenticationError:
-            sys.exit("API 키가 잘못됐습니다. .env 파일의 ANTHROPIC_API_KEY 를 확인하세요.")
-        except anthropic.APIError as e:
-            print(f"[실패] {folder.name}: {e}")
+        generate(cfg, folder)
 
 
 if __name__ == "__main__":
