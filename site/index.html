@@ -147,6 +147,19 @@
   .db-photos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-16); margin-top: var(--sp-96); }
   .db-photos .photo { aspect-ratio: 16 / 10; border-radius: 8px; }
 
+  /* 첫 화면 색을 이어받는 섹션: 베이비페어=검정, 사업자=노랑 */
+  .dark .facts { border-top-color: var(--white); }
+  .dark .facts li { border-bottom-color: var(--line-dark); }
+  .dark .facts li span, .dark .class p { color: var(--gray-3); }
+  .yel { background: var(--yellow); color: var(--black); }
+  .yel .eyebrow { color: var(--black); }
+  .yel .lead { color: #3d3600; }
+  .yel .proof li { color: var(--black); font-weight: 600; }
+  .yel .proof li::before { background: var(--black); }
+  .yel .promise { border-color: var(--black); color: var(--black); }
+  .yel .feed { background: var(--black); border-color: var(--black); color: var(--white); }
+  .yel .feed .sample { background: var(--white); border: 1px solid var(--black); }
+
   /* 성장 단계 */
   .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-24); margin-top: var(--sp-64); }
   .step { border-top: 4px solid var(--black); padding-top: var(--sp-32); }
@@ -270,10 +283,10 @@
   </div>
 </section>
 
-<section class="sec" id="fair">
+<section class="sec dark" id="fair">
   <div class="wrap">
     <div class="fair">
-      <div class="photo light"><span class="cap">사진 자리: 박람회장 전경, 사람 많은 장면</span></div>
+      <div class="photo"><span class="cap">사진 자리: 박람회장 전경, 사람 많은 장면</span></div>
       <div>
         <p class="eyebrow">시장 01 · 베이비페어</p>
         <h2>보험 알아보러 온<br>부모님을 만나요</h2>
@@ -291,17 +304,17 @@
         <h3>한 달에 2~3번은<br>산모교실에서 만나요</h3>
         <p>출산 앞둔 예비 부모님을 박람회보다 더 가까운 자리에서 만나요. 한 분 한 분 이야기할 시간이 길어요.</p>
       </div>
-      <div class="photo light"><span class="cap">사진 자리: 산모교실 진행 장면</span></div>
+      <div class="photo"><span class="cap">사진 자리: 산모교실 진행 장면</span></div>
     </div>
   </div>
 </section>
 
-<section class="sec dark" id="db">
+<section class="sec yel" id="db">
   <div class="wrap">
     <div class="db">
       <div>
         <p class="eyebrow">시장 02 · 사업자 상담 DB</p>
-        <h2>평일엔 매일<br>대표님 2명이<br>배정돼요</h2>
+        <h2>이런 대표님들이<br>배정돼요</h2>
         <p class="lead">매출 확인된 법인, 개인사업자 대표님이에요. DB 값은 안 받아요. 한 달이면 대표님만 40명 넘게 만나요.</p>
         <ul class="proof">
           <li>법인, 개인사업자 대표님만 배정</li>
