@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>팔리는 주제 발굴기 AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Hahmlet:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF2EE; --surface:#FFFFFF; --ink:#1B2420; --muted:#5B6862; --line:#D6DDD7;
+  --hl:#FFE24A; --hl-soft:#FFF5B5; --green:#2C6A50; --green-soft:#DDEDE4; --warn:#9A5B12; --grey:#8A958F;
+  --display:"Hahmlet","Nanum Myeongjo",Georgia,serif;
+  --body:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121815; --surface:#1A221E; --ink:#E6ECE8; --muted:#9AA7A0; --line:#2C3631;
+    --hl:#E4C51C; --hl-soft:#3A3413; --green:#74C49D; --green-soft:#1F3A2D; --warn:#E2A65A; --grey:#7D8983;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121815; --surface:#1A221E; --ink:#E6ECE8; --muted:#9AA7A0; --line:#2C3631;
+  --hl:#E4C51C; --hl-soft:#3A3413; --green:#74C49D; --green-soft:#1F3A2D; --warn:#E2A65A; --grey:#7D8983;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6;word-break:keep-all;overflow-wrap:anywhere}
+img{max-width:100%}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--green);outline-offset:2px}
+
+.wrap{max-width:1200px;margin:0 auto;padding:28px 20px 80px}
+header.top{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding-bottom:22px;border-bottom:2px solid var(--ink);margin-bottom:28px}
+header.top h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,4.2vw,44px);line-height:1.15;margin:0;letter-spacing:-0.02em}
+header.top p{margin:6px 0 0;color:var(--muted);max-width:52ch}
+.note-live{font-size:13px;color:var(--muted);max-width:34ch;text-align:right;margin:0}
+@media (max-width:700px){.note-live{text-align:left;max-width:none}}
+
+.layout{display:grid;gap:28px}
+@media (min-width:980px){.layout{grid-template-columns:390px 1fr;align-items:start}.form{position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto}}
+
+/* form: yellow = 직접 입력하는 칸, same rule as the workbook */
+.form{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px}
+.form h2{font-family:var(--display);font-size:20px;margin:0 0 4px}
+.form .lead{margin:0 0 18px;color:var(--muted);font-size:13.5px}
+.field{margin-bottom:16px}
+.field label,.field .lab{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+.field .hint{font-weight:400;color:var(--muted);font-size:12.5px;display:block;margin-top:1px}
+.inp{width:100%;background:var(--hl-soft);border:0;border-bottom:3px solid var(--hl);border-radius:6px 6px 2px 2px;padding:10px 12px;resize:vertical;min-height:44px}
+.inp::placeholder{color:var(--muted);opacity:.8}
+textarea.inp{min-height:76px}
+.inp:focus{outline:none;border-bottom-color:var(--green);background:var(--surface);box-shadow:inset 0 0 0 1px var(--line)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 11px;font-size:13px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+select.inp{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 16px) 55%,calc(100% - 11px) 55%;background-size:5px 5px;background-repeat:no-repeat;padding-right:28px}
+.go{width:100%;border:0;border-radius:10px;background:var(--green);color:#fff;font-weight:600;font-size:16px;padding:14px;cursor:pointer;margin-top:4px}
+:root[data-theme="dark"] .go{color:#0E1512}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .go{color:#0E1512}}
+.go:disabled{opacity:.5;cursor:not-allowed}
+.small-note{font-size:12px;color:var(--muted);margin:10px 0 0}
+
+/* results */
+.results-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.results-head h2{font-family:var(--display);font-size:24px;margin:0}
+.status{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--hl);border-radius:10px;padding:14px 16px;margin-bottom:16px}
+.status[hidden]{display:none}
+.status .dots{display:inline-flex;gap:4px}
+.status .dots i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:blink 1.2s infinite ease-in-out}
+.status .dots i:nth-child(2){animation-delay:.2s}.status .dots i:nth-child(3){animation-delay:.4s}
+@keyframes blink{0%,80%,100%{opacity:.25}40%{opacity:1}}
+@media (prefers-reduced-motion:reduce){.status .dots i{animation:none;opacity:.8}}
+.status .msg{flex:1}
+.btn-ghost{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:7px 12px;font-size:13.5px;cursor:pointer}
+.btn-ghost:hover{border-color:var(--ink)}
+.btn-ghost:disabled{opacity:.5;cursor:not-allowed}
+.error{background:var(--hl-soft);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:14px}
+.error[hidden]{display:none}
+
+.empty{border:2px dashed var(--line);border-radius:14px;padding:36px 28px;color:var(--muted)}
+.empty h3{font-family:var(--display);color:var(--ink);font-size:20px;margin:0 0 8px}
+.empty ol{margin:10px 0 0;padding-left:20px}
+
+.strengths{font-family:var(--display);font-size:18px;line-height:1.55;margin:0 0 18px;padding:4px 0 4px 16px;border-left:3px solid var(--green)}
+
+.topics{display:flex;flex-direction:column;gap:14px}
+.topic{display:grid;grid-template-columns:56px 1fr;gap:4px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px}
+.topic.first{border:2px solid var(--ink)}
+.rank{font-family:var(--display);font-weight:800;font-size:40px;line-height:1;color:var(--ink);text-align:center;padding-top:2px}
+.topic:not(.first) .rank{color:var(--grey)}
+.t-main{min-width:0}
+.t-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.tag{font-size:12px;border-radius:5px;padding:2px 8px;background:var(--bg);color:var(--muted)}
+.grade{font-weight:600}
+.g4{background:var(--green);color:var(--surface)}
+.g3{background:var(--green-soft);color:var(--green)}
+.g2{background:var(--hl-soft);color:var(--warn)}
+.g1{background:var(--bg);color:var(--grey)}
+.tag.mine{background:var(--hl);color:#1B2420}
+.topic h3{font-family:var(--display);font-size:20px;line-height:1.35;margin:0 0 4px;letter-spacing:-0.01em}
+.target{margin:0;color:var(--muted);font-size:14px}
+.total{text-align:right;flex-shrink:0}
+.total strong{font-family:var(--display);font-size:30px;line-height:1;display:block}
+.total span{font-size:12px;color:var(--muted)}
+.why{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:12px 0;font-size:14px}
+.why dt{color:var(--muted);white-space:nowrap}
+.why dd{margin:0}
+.bars{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:10px 0 12px}
+@media (max-width:560px){.bars{grid-template-columns:repeat(2,minmax(0,1fr))}.topic{grid-template-columns:36px 1fr}.rank{font-size:28px}.why{grid-template-columns:1fr}.why dt{margin-top:4px}}
+.bar .bl{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:3px}
+.bar .bl b{color:var(--ink);font-weight:600}
+.bar .track{height:6px;border-radius:3px;background:var(--bg);overflow:hidden}
+.bar .fill{height:100%;background:var(--green);border-radius:3px}
+.kw{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted);margin-bottom:12px}
+.kw code{font-family:var(--body);background:var(--hl-soft);color:var(--ink);padding:1px 8px;border-radius:4px;font-size:13px}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.btn-save[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.panel{margin-top:14px;border-top:1px solid var(--line);padding-top:14px}
+.panel[hidden]{display:none}
+.panel h4{font-size:14px;margin:0 0 8px;color:var(--muted);font-weight:600}
+.titles{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.titles li{display:grid;grid-template-columns:100px 1fr auto;gap:10px;align-items:start;font-size:14px}
+@media (max-width:560px){.titles li{grid-template-columns:1fr auto}.titles .ty{grid-column:1/-1}}
+.titles .ty{color:var(--muted);font-size:12.5px;padding-top:2px}
+.titles .tt{font-weight:600}
+.titles .tn{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+.copy{border:0;background:transparent;color:var(--green);font-size:13px;cursor:pointer;padding:2px 4px}
+.detail-grid{display:grid;gap:16px}
+@media (min-width:700px){.detail-grid{grid-template-columns:1fr 1fr}}
+.detail-grid section{min-width:0}
+.detail-grid ol,.detail-grid ul{margin:0;padding-left:20px;font-size:14px}
+.detail-grid p{margin:0;font-size:14px}
+.price{font-family:var(--display);font-size:20px;font-weight:700}
+.mini-dot{width:8px;height:8px;border-radius:50%;background:var(--green);animation:blink 1.2s infinite ease-in-out;flex-shrink:0}
+@media (prefers-reduced-motion:reduce){.mini-dot{animation:none}}
+.inline-status{font-size:13.5px;color:var(--muted);display:flex;gap:10px;align-items:center}
+
+.more-row{display:flex;justify-content:center;margin-top:18px}
+
+.saved{margin-top:40px}
+.saved h2{font-family:var(--display);font-size:22px;margin:0 0 10px}
+.saved-list{list-style:none;padding:0;margin:0;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.saved-list li{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid var(--line)}
+.saved-list li:first-child{border-top:0}
+.saved-list .st{font-weight:600}
+.saved-list .sm{font-size:12.5px;color:var(--muted)}
+.saved-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>팔리는 주제 발굴기 AI</h1>
+      <p>내 일과 경험, 사람들이 나에게 물어본 것을 적으면 AI가 팔릴 만한 주제를 찾고 워크북과 같은 기준으로 점수를 매겨요.</p>
+    </div>
+    <p class="note-live">AI가 수요 패턴과 논리로 판단한 결과예요. 실시간 판매 데이터는 아니니, 추천 검색어로 플랫폼에서 꼭 한 번 확인해보세요.</p>
+  </header>
+
+  <div class="layout">
+    <form class="form" id="form" autocomplete="off">
+      <h2>나에 대해 알려주세요</h2>
+      <p class="lead">노란 칸만 채우면 돼요. 구체적일수록 주제가 날카로워져요.</p>
+
+      <div class="field">
+        <label for="job">지금 하는 일<span class="hint">직업, 연차, 업무 내용</span></label>
+        <input class="inp" id="job" placeholder="예) 7년차 중소기업 회계팀, 결산과 세금계산서 담당">
+      </div>
+      <div class="field">
+        <label for="asked">최근 누가, 무엇을 물어봤나요?<span class="hint">"어떻게 하는 거예요?" 소리를 들었던 것들</span></label>
+        <textarea class="inp" id="asked" placeholder="예) 후배가 엑셀 피벗 쓰는 법을 자주 물어봄, 친구가 연말정산 뭐 챙겨야 하냐고 물어봄"></textarea>
+      </div>
+      <div class="field">
+        <label for="exp">오래 해왔거나 잘하는 것<span class="hint">일, 취미, 극복한 경험 모두 좋아요</span></label>
+        <textarea class="inp" id="exp" placeholder="예) 육아휴직 중 가계부로 1년에 1,200만원 모음, 노션으로 가계 관리"></textarea>
+      </div>
+
+      <div class="field">
+        <span class="lab">관심 분야<span class="hint">여러 개 골라도 되고, 안 골라도 돼요</span></span>
+        <div class="chips" id="cats"></div>
+      </div>
+      <div class="field">
+        <span class="lab">만들고 싶은 형태</span>
+        <div class="chips" id="fmts"></div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="platform">판매할 곳</label>
+          <select class="inp" id="platform">
+            <option>크몽</option><option>탈잉</option><option>클래스101</option><option>스마트스토어</option><option>아직 모름</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="time">쓸 수 있는 시간</label>
+          <select class="inp" id="time">
+            <option>주 3시간 이하</option><option selected>주 5~10시간</option><option>주 10시간 이상</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="own">이미 생각해둔 주제<span class="hint">있다면 한 줄에 하나씩. AI가 같이 채점해요</span></label>
+        <textarea class="inp" id="own" placeholder="예) 회계 초보를 위한 엑셀 결산 템플릿"></textarea>
+      </div>
+
+      <button class="go" id="go" type="submit">팔리는 주제 찾기</button>
+      <p class="small-note" id="capnote">AI 분석은 claude.ai 계정 사용량을 써요. 처음 누를 때 허용 여부를 물어봐요.</p>
+    </form>
+
+    <main aria-live="polite">
+      <div class="results-head">
+        <h2 id="rtitle">추천 주제</h2>
+        <button class="btn-ghost" id="clear" type="button" hidden>결과 지우기</button>
+      </div>
+      <div class="status" id="status" hidden>
+        <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span class="msg" id="statusMsg">AI가 주제를 고르는 중이에요</span>
+        <button class="btn-ghost" id="stop" type="button">멈추기</button>
+      </div>
+      <div class="error" id="error" role="alert" hidden></div>
+
+      <div class="empty" id="empty">
+        <h3>아직 발굴한 주제가 없어요</h3>
+        <p>왼쪽 노란 칸을 채우고 <b>팔리는 주제 찾기</b>를 눌러보세요. 이렇게 진행돼요.</p>
+        <ol>
+          <li>AI가 내 경험에서 팔릴 만한 주제 6개를 찾아요.</li>
+          <li>수요 30%, 내 경험 25%, 제작 난이도 20%, 시장 검증 25%로 종합 점수와 등급을 매겨요.</li>
+          <li>마음에 드는 주제는 제목 5개, 목차와 가격, 이번 주 검증 방법까지 뽑아볼 수 있어요.</li>
+        </ol>
+      </div>
+
+      <p class="strengths" id="strengths" hidden></p>
+      <div class="topics" id="topics"></div>
+      <div class="more-row"><button class="btn-ghost" id="more" type="button" hidden>다른 각도로 4개 더 찾기</button></div>
+
+      <section class="saved" id="savedSec" hidden>
+        <h2>찜한 주제</h2>
+        <ul class="saved-list" id="savedList"></ul>
+        <div class="saved-actions">
+          <button class="btn-ghost" id="exportCsv" type="button" hidden>엑셀용 CSV로 저장</button>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+  };
+
+  const CATS = ["오피스·문서작성","부업·재테크","SNS·마케팅","자기계발·생산성","외국어·어학","취업·이력서","디자인·이미지툴","육아·가정살림","건강·운동","사진·영상편집"];
+  const FMTS = ["전자책","템플릿","체크리스트","VOD 강의","1:1 코칭"];
+
+  // 워크북 추천DB의 패턴 (AI에 각도 참고용으로만 전달)
+  const DB = {
+    "오피스·문서작성":["엑셀 초보를 위한 실무 함수 모음","보고서 검토 시간 절반으로 줄이는 체크리스트","파워포인트 디자인 템플릿 30선","회의록 정리 템플릿과 작성법","구글 스프레드시트로 만드는 업무 대시보드"],
+    "부업·재테크":["퇴근 후 2시간 부업 로드맵","사회초년생을 위한 월급 관리 루틴","중고거래로 부수입 만드는 실전 노하우","스마트스토어 상품 소싱 체크리스트","청년 정책자금·지원제도 총정리"],
+    "SNS·마케팅":["인스타그램 릴스 기획부터 편집까지","블로그 상위노출 SEO 체크리스트","카드뉴스 템플릿과 문구 작성법","스레드로 팔로워 늘리는 실전 전략"],
+    "자기계발·생산성":["하루 30분 루틴으로 삶 정리하기","노션으로 만드는 나만의 업무 대시보드","번아웃 극복을 위한 감정 정리 워크북","습관 트래커 템플릿"],
+    "외국어·어학":["왕초보를 위한 영어 이메일 템플릿 모음","여행 필수 회화 30문장 암기법","토익 스피킹 단기 완성 로드맵"],
+    "취업·이력서":["합격하는 자기소개서 문장 템플릿","이직러를 위한 경력기술서 작성법","면접 단골 질문 답변 스크립트"],
+    "디자인·이미지툴":["미리캔버스로 만드는 SNS 썸네일 30선","캔바 템플릿으로 브랜드 로고 만들기","인쇄용 명함·전단지 디자인 가이드"],
+    "육아·가정살림":["초보 부모를 위한 이유식 스케줄표","맞벌이 부부를 위한 살림 분담 루틴","냉장고 파먹기 일주일 식단표"],
+    "건강·운동":["홈트 초보를 위한 4주 루틴표","직장인 거북목 스트레칭 가이드","식단 기록 템플릿"],
+    "사진·영상편집":["브이로그 초보를 위한 컷편집 가이드","스마트폰으로 제품 사진 잘 찍는 법","캡컷으로 만드는 숏폼 편집 템플릿"]
+  };
+
+  // ---------- state ----------
+  let sample = null, downloads = null, aiBlocked = false;
+  let state = store.get("tf_state", { strengths: "", topics: [] });
+  let saved = store.get("tf_saved", []);
+  let discoverCtl = null;
+  const persist = () => store.set("tf_state", state);
+  const persistSaved = () => store.set("tf_saved", saved);
+
+  // ---------- form ----------
+  const draft = store.get("tf_draft", {});
+  function makeChips(el, items, key) {
+    const sel = new Set(draft[key] || []);
+    el.innerHTML = items.map(t => `<button type="button" class="chip" aria-pressed="${sel.has(t)}" data-v="${esc(t)}">${esc(t)}</button>`).join("");
+    el.addEventListener("click", e => {
+      const b = e.target.closest(".chip"); if (!b) return;
+      b.setAttribute("aria-pressed", b.getAttribute("aria-pressed") !== "true");
+      saveDraft();
+    });
+  }
+  makeChips($("#cats"), CATS, "cats");
+  makeChips($("#fmts"), FMTS, "fmts");
+  ["job","asked","exp","own","platform","time"].forEach(id => { if (draft[id] != null) $("#" + id).value = draft[id]; });
+  const picked = id => [...document.querySelectorAll(`#${id} .chip[aria-pressed="true"]`)].map(b => b.dataset.v);
+  function readForm() {
+    return {
+      job: $("#job").value.trim(), asked: $("#asked").value.trim(), exp: $("#exp").value.trim(),
+      own: $("#own").value.trim(), platform: $("#platform").value, time: $("#time").value,
+      cats: picked("cats"), fmts: picked("fmts")
+    };
+  }
+  function saveDraft() { store.set("tf_draft", readForm()); }
+  $("#form").addEventListener("input", saveDraft);
+  $("#form").addEventListener("change", saveDraft);
+
+  function profileText(f) {
+    return [
+      `- 하는 일: ${f.job || "(미입력)"}`,
+      `- 최근 사람들이 물어본 것: ${f.asked || "(미입력)"}`,
+      `- 오래 해왔거나 잘하는 것: ${f.exp || "(미입력)"}`,
+      `- 관심 분야: ${f.cats.length ? f.cats.join(", ") : "상관없음"}`,
+      `- 원하는 상품 형태: ${f.fmts.length ? f.fmts.join(", ") : "상관없음"}`,
+      `- 판매 플랫폼: ${f.platform}`,
+      `- 제작에 쓸 수 있는 시간: ${f.time}`
+    ].join("\n");
+  }
+
+  // ---------- scoring (워크북과 같은 공식) ----------
+  const clamp = n => Math.max(1, Math.min(5, Math.round(Number(n) || 1)));
+  const total = t => Math.round((t.demand * 0.3 + t.experience * 0.25 + t.ease * 0.2 + t.market * 0.25) * 100) / 100;
+  const grade = s => s >= 4 ? ["최우선 추천","g4"] : s >= 3 ? ["추천","g3"] : s >= 2 ? ["검토 필요","g2"] : ["보류","g1"];
+
+  // ---------- AI ----------
+  const ERR = {
+    rate_limited: "요청이 잠깐 몰렸어요. 조금 뒤에 다시 눌러주세요.",
+    session_expired: "로그인이 만료됐어요. claude.ai에 다시 로그인한 뒤 눌러주세요.",
+    refused: "이 입력으로는 답을 만들지 못했어요. 내용을 조금 바꿔서 다시 시도해주세요.",
+    invalid_json: "AI 답을 정리하지 못했어요. 다시 눌러주세요.",
+    empty_completion: "AI가 빈 답을 보냈어요. 다시 눌러주세요.",
+    prompt_too_large: "입력이 너무 길어요. 칸마다 내용을 조금 줄여주세요."
+  };
+  const BLOCK = new Set(["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"]);
+  function errText(e) {
+    const code = e && e.code;
+    if (BLOCK.has(code)) { blockAI(); return "AI 사용이 허용되지 않아 분석을 할 수 없어요. 페이지를 새로 열고 허용을 누르면 다시 쓸 수 있어요."; }
+    return ERR[code] || "연결이 잠깐 끊겼어요. 다시 눌러주세요.";
+  }
+  function blockAI() {
+    aiBlocked = true;
+    $("#go").disabled = true;
+    $("#more").hidden = true;
+    $("#capnote").textContent = "지금 이 화면에서는 AI 분석을 쓸 수 없어요. claude.ai에서 이 페이지를 열어주세요.";
+    document.querySelectorAll('[data-act="titles"],[data-act="detail"]').forEach(b => b.disabled = true);
+  }
+
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("sample").then(s => { sample = s; if (!s) blockAI(); }).catch(() => blockAI());
+    window.claude.use("downloads").then(d => { downloads = d; renderSaved(); }).catch(() => {});
+  } else {
+    setTimeout(blockAI, 0);
+  }
+  const ready = () => !!sample && !aiBlocked;
+
+  function discoverPrompt(f, count, exclude) {
+    const cats = f.cats.length ? f.cats : CATS;
+    const patterns = cats.map(c => `${c}: ${(DB[c] || []).join(" / ")}`).join("\n");
+    const ownList = f.own ? f.own.split("\n").map(s => s.trim()).filter(Boolean) : [];
+    return `너는 크몽, 탈잉, 클래스101 같은 지식창업 플랫폼에서 '첫 판매(0건 탈출)'를 돕는 상품 기획 코치야.
+아래 사람의 정보를 보고, 이 사람이 실제로 만들 수 있고 사람들이 돈을 내고 살 만한 디지털 지식상품 주제를 ${count}개 제안해.
+
+원칙
+- 이 사람의 일, 경험, 질문받은 내용에서 출발해. 누구나 낼 수 있는 뻔한 주제 말고, 이 사람의 경험이 드러나는 구체적인 각도로 좁혀.
+- 제목은 '검색어 + 구체적 결과' 공식으로. 사람들이 실제로 검색할 단어가 앞에 오고, 사면 얻는 결과가 구체적으로 보여야 해.
+- 실시간 판매 데이터는 없으니 판매량, 매출, 검색량 같은 숫자를 지어내지 마. 판단 근거는 수요 패턴과 논리로 설명해.
+- 점수는 1~5 정수. 후하게 주지 말고 주제마다 차이가 나게 매겨.
+  demand: 이 문제를 이미 찾고 돈을 쓸 사람이 꾸준히 있는가 (반복 질문, 꾸준한 검색, 시즌 수요)
+  experience: 입력된 경험으로 볼 때 이 사람이 신뢰 있게 만들 수 있는가
+  ease: '${f.time}' 안에서 첫 버전을 만들기 쉬운가 (5 = 아주 쉬움)
+  market: 비슷한 상품이 이미 팔리고 있어 시장이 검증됐는가 (5 = 경쟁 상품 많음 = 검증됨, 3 = 애매함, 1 = 거의 없음 = 수요 불확실)
+- searchKeywords: ${f.platform === "아직 모름" ? "크몽" : f.platform} 검색창에 쳐서 경쟁 상품을 직접 확인해볼 짧은 검색어 2~3개.
+${ownList.length ? `- 아래 '사용자가 직접 적은 주제'도 각각 같은 기준으로 평가해서 fromUser: true로 포함해. 제목은 원래 주제를 살려 다듬되 뜻은 바꾸지 마. 이것들은 ${count}개와 별도로 추가해.` : ""}
+
+[사람 정보]
+${profileText(f)}
+${ownList.length ? `\n[사용자가 직접 적은 주제]\n${ownList.map(s => "- " + s).join("\n")}\n` : ""}
+[참고: 꾸준히 팔리는 주제 패턴. 그대로 쓰지 말고 각도만 참고]
+${patterns}
+${exclude.length ? `\n[이미 제안한 주제. 이것들과 겹치지 않는 새로운 각도로]\n${exclude.map(s => "- " + s).join("\n")}\n` : ""}
+다른 말 없이 JSON 하나로만 답해. 형식:
+{"strengths":"이 사람이 가진 '팔 수 있는 강점' 요약 1~2문장","topics":[{"title":"상품 제목","category":"분야","format":"전자책|템플릿|체크리스트|VOD 강의|1:1 코칭 중 하나","target":"구체적인 타겟","problem":"타겟이 겪는 문제 한 문장","whySells":"왜 팔릴지 1~2문장","myEdge":"이 사람이라서 유리한 점 한 문장","marketNote":"경쟁 상황 추정 한 문장","demand":4,"experience":4,"ease":3,"market":4,"searchKeywords":["검색어1","검색어2"],"fromUser":false}]}`;
+  }
+
+  // ---------- discovery ----------
+  let timer = null;
+  function showStatus(msg, ctl) {
+    const st = $("#status"), start = Date.now();
+    st.hidden = false;
+    if (window.matchMedia("(max-width: 979px)").matches) st.scrollIntoView({ behavior: "smooth", block: "start" });
+    const tick = () => { $("#statusMsg").textContent = `${msg} (${Math.round((Date.now() - start) / 1000)}초)`; };
+    tick(); clearInterval(timer); timer = setInterval(tick, 1000);
+    $("#stop").onclick = () => ctl.abort();
+  }
+  function hideStatus() { clearInterval(timer); $("#status").hidden = true; }
+  function showError(msg) { const e = $("#error"); e.textContent = msg; e.hidden = !msg; }
+
+  async function discover(append) {
+    if (!ready() || discoverCtl) return;
+    const f = readForm();
+    if (!f.job && !f.asked && !f.exp && !f.own) { showError("하는 일, 물어본 것, 경험 중 한 칸은 채워주세요. 그래야 나에게 맞는 주제를 찾을 수 있어요."); return; }
+    showError("");
+    discoverCtl = new AbortController();
+    const ctl = discoverCtl;
+    $("#go").disabled = true; $("#more").disabled = true;
+    showStatus(append ? "다른 각도의 주제를 더 찾는 중이에요" : "AI가 내 경험을 읽고 주제를 고르는 중이에요", ctl);
+    const exclude = append ? state.topics.map(t => t.title) : [];
+    const count = append ? 4 : 6;
+    try {
+      const data = await sample.json(discoverPrompt(append ? { ...f, own: "" } : f, count, exclude), {
+        signal: ctl.signal, cache: false
+      });
+      const list = Array.isArray(data && data.topics) ? data.topics : [];
+      const fresh = list.filter(t => t && t.title).map(t => ({
+        id: "t" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+        title: String(t.title), category: String(t.category || ""), format: String(t.format || ""),
+        target: String(t.target || ""), problem: String(t.problem || ""), whySells: String(t.whySells || ""),
+        myEdge: String(t.myEdge || ""), marketNote: String(t.marketNote || ""),
+        demand: clamp(t.demand), experience: clamp(t.experience), ease: clamp(t.ease), market: clamp(t.market),
+        searchKeywords: Array.isArray(t.searchKeywords) ? t.searchKeywords.map(String).slice(0, 3) : [],
+        fromUser: !!t.fromUser, profile: profileText(f), titles: null, detail: null
+      }));
+      if (!fresh.length) throw { code: "invalid_json" };
+      state = append ? { strengths: state.strengths, topics: state.topics.concat(fresh) } : { strengths: String(data.strengths || ""), topics: fresh };
+      state.topics.sort((a, b) => total(b) - total(a));
+      persist(); render();
+    } catch (e) {
+      if (e && e.code !== "cancelled") showError(errText(e));
+    } finally {
+      hideStatus(); discoverCtl = null;
+      if (!aiBlocked) { $("#go").disabled = false; $("#more").disabled = false; }
+    }
+  }
+  $("#form").addEventListener("submit", e => { e.preventDefault(); discover(false); });
+  $("#more").addEventListener("click", () => discover(true));
+  $("#clear").addEventListener("click", () => { state = { strengths: "", topics: [] }; persist(); render(); });
+
+  // ---------- per-topic AI ----------
+  const running = new Map();
+  async function runTitles(t, panel, btn) {
+    const prompt = `지식상품 제목 5개를 만들어줘. 공식은 '검색어 + 구체적 결과'야.
+점검 기준: 사람들이 실제로 검색할 단어가 들어 있는가? 사면 얻는 결과가 구체적인가? 과장 광고 문구(무조건, 100% 등)는 쓰지 마.
+
+[주제] ${t.title}
+[타겟] ${t.target}
+[형태] ${t.format}
+[타겟의 문제] ${t.problem}
+[만드는 사람] ${t.profile.split("\n").slice(0, 3).join(" / ")}
+
+유형은 순서대로 딱 하나씩: 검색어+결과형, 타겟 공략형, 결과 직접 제시형, Q&A형, 체크리스트형.
+다른 말 없이 JSON 배열로만 답해:
+[{"type":"검색어+결과형","title":"제목","note":"이 제목이 먹히는 이유 한 줄"}]`;
+    return withPanel(t, "titles", panel, btn, "제목을 짓는 중이에요", prompt, "quick", data => {
+      const arr = Array.isArray(data) ? data.filter(x => x && x.title).slice(0, 5) : [];
+      if (!arr.length) throw { code: "invalid_json" };
+      t.titles = arr.map(x => ({ type: String(x.type || ""), title: String(x.title), note: String(x.note || "") }));
+    });
+  }
+  async function runDetail(t, panel, btn) {
+    const prompt = `아래 지식상품 주제를 실제로 만들어 팔 수 있게 기획해줘. 한국 지식창업 플랫폼 기준으로, 초보 판매자가 이번 주에 바로 움직일 수 있게 구체적으로.
+판매량이나 검색량 숫자는 지어내지 마. 가격은 비슷한 상품 수준을 기준으로 한 추정 범위로.
+
+[주제] ${t.title}
+[형태] ${t.format}
+[타겟] ${t.target}
+[타겟의 문제] ${t.problem}
+[만드는 사람]
+${t.profile}
+
+다른 말 없이 JSON으로만 답해:
+{"persona":"가장 먼저 살 사람 한 명을 구체적으로 묘사 1~2문장","pains":["그 사람이 겪는 구체적인 고민 3개"],"outline":["목차 6~8개, 각 항목은 짧게"],"bonus":"같이 주면 구매 결정을 돕는 보너스 자료 한 가지","price":"추정 가격 범위 (예: 9,900~19,900원)","priceReason":"그 가격인 이유 한 문장","validate":["만들기 전에 이번 주에 해볼 수요 검증 행동 3개, 각각 구체적으로"],"risk":"주의할 점 한 문장"}`;
+    return withPanel(t, "detail", panel, btn, "목차와 가격을 짜는 중이에요", prompt, "default", data => {
+      if (!data || !Array.isArray(data.outline)) throw { code: "invalid_json" };
+      const arr = v => Array.isArray(v) ? v.map(String) : [];
+      t.detail = { persona: String(data.persona || ""), pains: arr(data.pains), outline: arr(data.outline), bonus: String(data.bonus || ""),
+        price: String(data.price || ""), priceReason: String(data.priceReason || ""), validate: arr(data.validate), risk: String(data.risk || "") };
+    });
+  }
+  async function withPanel(t, kind, panel, btn, msg, prompt, tier, apply) {
+    const key = t.id + kind;
+    if (running.has(key) || !ready()) return;
+    const ctl = new AbortController(); running.set(key, ctl);
+    btn.disabled = true; panel.hidden = false;
+    const start = Date.now();
+    panel.innerHTML = `<div class="inline-status"><span class="mini-dot" aria-hidden="true"></span><span class="im">${msg}</span><button class="btn-ghost" type="button">멈추기</button></div>`;
+    const im = $(".im", panel);
+    const iv = setInterval(() => { im.textContent = `${msg} (${Math.round((Date.now() - start) / 1000)}초)`; }, 1000);
+    $("button", panel).onclick = () => ctl.abort();
+    try {
+      const data = await sample.json(prompt, { signal: ctl.signal, modelTier: tier, cache: false });
+      apply(data); persist();
+      renderPanel(t, kind, panel);
+    } catch (e) {
+      if (e && e.code === "cancelled") { panel.hidden = true; panel.innerHTML = ""; }
+      else panel.innerHTML = `<p class="inline-status">${esc(errText(e))}</p>`;
+    } finally {
+      clearInterval(iv); running.delete(key);
+      if (!aiBlocked) btn.disabled = false;
+    }
+  }
+
+  // ---------- render ----------
+  function bar(label, v) {
+    return `<div class="bar"><div class="bl"><span>${label}</span><b>${v}</b></div><div class="track"><div class="fill" style="width:${v * 20}%"></div></div></div>`;
+  }
+  function renderPanel(t, kind, panel) {
+    if (kind === "titles" && t.titles) {
+      panel.innerHTML = `<h4>제목 후보 5개</h4><ul class="titles">${t.titles.map(x =>
+        `<li><span class="ty">${esc(x.type)}</span><span><span class="tt">${esc(x.title)}</span><span class="tn">${esc(x.note)}</span></span><button type="button" class="copy" data-copy="${esc(x.title)}">복사</button></li>`).join("")}</ul>
+        <div class="actions" style="margin-top:10px"><button type="button" class="btn-ghost" data-act="titles-again">다른 제목으로 다시 짓기</button></div>`;
+    }
+    if (kind === "detail" && t.detail) {
+      const d = t.detail;
+      panel.innerHTML = `<div class="detail-grid">
+        <section><h4>처음 살 사람</h4><p>${esc(d.persona)}</p>${d.pains.length ? `<ul style="margin-top:6px">${d.pains.map(p => `<li>${esc(p)}</li>`).join("")}</ul>` : ""}</section>
+        <section><h4>추정 가격</h4><p class="price">${esc(d.price)}</p><p>${esc(d.priceReason)}</p>${d.bonus ? `<p style="margin-top:8px"><b>보너스 자료</b> ${esc(d.bonus)}</p>` : ""}</section>
+        <section><h4>목차 초안</h4><ol>${d.outline.map(o => `<li>${esc(o)}</li>`).join("")}</ol></section>
+        <section><h4>만들기 전에, 이번 주 검증</h4><ol>${d.validate.map(o => `<li>${esc(o)}</li>`).join("")}</ol>${d.risk ? `<p style="margin-top:8px"><b>주의</b> ${esc(d.risk)}</p>` : ""}</section>
+      </div>`;
+    }
+  }
+  function topicHTML(t, i) {
+    const s = total(t), [g, gc] = grade(s);
+    const isSaved = saved.some(x => x.id === t.id);
+    return `<article class="topic${i === 0 ? " first" : ""}" data-id="${t.id}">
+      <div class="rank" aria-label="${i + 1}위">${i + 1}</div>
+      <div class="t-main">
+        <div class="t-top">
+          <div>
+            <div class="tags"><span class="tag grade ${gc}">${g}</span>${t.format ? `<span class="tag">${esc(t.format)}</span>` : ""}${t.category ? `<span class="tag">${esc(t.category)}</span>` : ""}${t.fromUser ? `<span class="tag mine">내가 적은 주제</span>` : ""}</div>
+            <h3>${esc(t.title)}</h3>
+            <p class="target">${esc(t.target)}${t.problem ? `, ${esc(t.problem)}` : ""}</p>
+          </div>
+          <div class="total"><strong>${s.toFixed(2)}</strong><span>종합 / 5</span></div>
+        </div>
+        <dl class="why">
+          <dt>왜 팔릴까</dt><dd>${esc(t.whySells)}</dd>
+          <dt>내가 유리한 점</dt><dd>${esc(t.myEdge)}</dd>
+          <dt>경쟁 상황</dt><dd>${esc(t.marketNote)}</dd>
+        </dl>
+        <div class="bars">${bar("수요", t.demand)}${bar("내 경험", t.experience)}${bar("만들기 쉬움", t.ease)}${bar("시장 검증", t.market)}</div>
+        ${t.searchKeywords.length ? `<div class="kw">직접 검색해볼 말 ${t.searchKeywords.map(k => `<code>${esc(k)}</code>`).join("")}</div>` : ""}
+        <div class="actions">
+          <button type="button" class="btn-ghost" data-act="titles" ${aiBlocked ? "disabled" : ""}>${t.titles ? "제목 후보 보기" : "제목 5개 뽑기"}</button>
+          <button type="button" class="btn-ghost" data-act="detail" ${aiBlocked ? "disabled" : ""}>${t.detail ? "목차·가격 보기" : "목차·가격·검증법 짜기"}</button>
+          <button type="button" class="btn-ghost btn-save" data-act="save" aria-pressed="${isSaved}">${isSaved ? "찜함" : "찜하기"}</button>
+        </div>
+        <div class="panel" data-panel="titles" hidden></div>
+        <div class="panel" data-panel="detail" hidden></div>
+      </div>
+    </article>`;
+  }
+  function render() {
+    const has = state.topics.length > 0;
+    $("#empty").hidden = has;
+    $("#clear").hidden = !has;
+    $("#more").hidden = !has || aiBlocked;
+    const st = $("#strengths");
+    st.hidden = !(has && state.strengths); st.textContent = state.strengths;
+    $("#rtitle").textContent = has ? `추천 주제 ${state.topics.length}개` : "추천 주제";
+    $("#topics").innerHTML = state.topics.map(topicHTML).join("");
+    renderSaved();
+  }
+
+  $("#topics").addEventListener("click", async e => {
+    const cp = e.target.closest("[data-copy]");
+    if (cp) {
+      try { await navigator.clipboard.writeText(cp.dataset.copy); cp.textContent = "복사됨"; }
+      catch { cp.textContent = "직접 선택해 복사해주세요"; }
+      setTimeout(() => { cp.textContent = "복사"; }, 1600);
+      return;
+    }
+    const btn = e.target.closest("[data-act]"); if (!btn) return;
+    const card = btn.closest(".topic"); const t = state.topics.find(x => x.id === card.dataset.id); if (!t) return;
+    const act = btn.dataset.act;
+    if (act === "save") {
+      const i = saved.findIndex(x => x.id === t.id);
+      if (i >= 0) saved.splice(i, 1); else saved.push({ id: t.id });
+      persistSaved();
+      const on = i < 0; btn.setAttribute("aria-pressed", on); btn.textContent = on ? "찜함" : "찜하기";
+      renderSaved(); return;
+    }
+    if (act === "titles" || act === "titles-again") {
+      const panel = $('[data-panel="titles"]', card), mainBtn = $('[data-act="titles"]', card);
+      if (act === "titles" && t.titles) { panel.hidden = !panel.hidden; if (!panel.hidden) renderPanel(t, "titles", panel); return; }
+      runTitles(t, panel, act === "titles" ? mainBtn : btn).then(() => { if (t.titles) mainBtn.textContent = "제목 후보 보기"; });
+      return;
+    }
+    if (act === "detail") {
+      const panel = $('[data-panel="detail"]', card);
+      if (t.detail) { panel.hidden = !panel.hidden; if (!panel.hidden) renderPanel(t, "detail", panel); return; }
+      runDetail(t, panel, btn).then(() => { if (t.detail) btn.textContent = "목차·가격 보기"; });
+    }
+  });
+
+  // ---------- saved ----------
+  function savedTopics() {
+    // 결과를 지워도 찜한 주제는 남도록 스냅샷 보관
+    return saved.map(s => {
+      const live = state.topics.find(t => t.id === s.id);
+      if (live) { Object.assign(s, { snap: live }); }
+      return s.snap ? s : null;
+    }).filter(Boolean);
+  }
+  function renderSaved() {
+    const list = savedTopics(); persistSaved();
+    $("#savedSec").hidden = list.length === 0;
+    $("#savedList").innerHTML = list.map(s => {
+      const t = s.snap, sc = total(t);
+      return `<li><div><div class="st">${esc(t.title)}</div><div class="sm">${esc(t.target)} / ${esc(t.format)} / 종합 ${sc.toFixed(2)} ${grade(sc)[0]}</div></div><button type="button" class="btn-ghost" data-unsave="${s.id}">빼기</button></li>`;
+    }).join("");
+    $("#exportCsv").hidden = !downloads || list.length === 0;
+  }
+  $("#savedList").addEventListener("click", e => {
+    const b = e.target.closest("[data-unsave]"); if (!b) return;
+    saved = saved.filter(x => x.id !== b.dataset.unsave); persistSaved(); render();
+  });
+  $("#exportCsv").addEventListener("click", async () => {
+    if (!downloads) return;
+    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const head = ["후보 주제","타겟","형태","수요 신호","내 경험","제작 난이도(5=쉬움)","시장 검증","종합 점수","추천 등급","왜 팔릴까","검색해볼 말","제목 후보","추정 가격"];
+    const rows = savedTopics().map(({ snap: t }) => [t.title, t.target, t.format, t.demand, t.experience, t.ease, t.market, total(t).toFixed(2), grade(total(t))[0], t.whySells, t.searchKeywords.join(", "), (t.titles || []).map(x => x.title).join(" | "), t.detail ? t.detail.price : ""]);
+    const csv = "\uFEFF" + [head, ...rows].map(r => r.map(q).join(",")).join("\r\n");
+    const btn = $("#exportCsv");
+    try { await downloads.save({ filename: "찜한_주제.csv", data: csv }); btn.textContent = "저장했어요"; }
+    catch (e) { btn.textContent = e && e.code === "declined" ? "저장을 취소했어요" : "지금은 저장할 수 없어요"; }
+    setTimeout(() => { btn.textContent = "엑셀용 CSV로 저장"; }, 2000);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
