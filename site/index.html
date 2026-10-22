@@ -4,330 +4,381 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>인카다이렉트 설계사 모집</title>
-<meta name="description" content="매주 베이비페어, 월 2~3회 산모교실, 평일 매일 2건 사업자 상담 DB. 영업할 시장이 있는 곳.">
+<meta name="description" content="매주 베이비페어, 매달 산모교실, 평일 매일 2건 사업자 상담 DB 무료. 인카다이렉트 신입·경력 설계사 모집">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   :root {
-    --paper: #f5f2ec;
-    --paper-2: #ebe6dc;
-    --ink: #1a1814;
-    --ink-2: #4a463e;
-    --ink-3: #8a8478;
-    --rule: #d6cfc2;
-    --accent: #d9480f;
-    --accent-ink: #fff;
-    --dark: #1a1814;
-    --dark-ink: #f5f2ec;
-    --gutter: 20px;
-    --max: 1080px;
+    --black: #111111;
+    --black-2: #1c1c1c;
+    --white: #ffffff;
+    --gray-1: #f4f4f4;
+    --gray-3: #b5b5b5;
+    --gray-5: #6b6b6b;
+    --line: #e4e4e4;
+    --line-dark: #2e2e2e;
+    --yellow: #ffd400;
+
+    --fs-12: 12px; --fs-14: 14px; --fs-16: 16px; --fs-18: 18px; --fs-20: 20px;
+    --fs-28: 28px; --fs-40: 40px; --fs-56: 56px; --fs-72: 72px;
+
+    --sp-8: 8px; --sp-12: 12px; --sp-16: 16px; --sp-24: 24px; --sp-32: 32px;
+    --sp-48: 48px; --sp-64: 64px; --sp-96: 96px; --sp-140: 140px;
+
+    --max: 1200px;
+    --gutter: 40px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; }
   body {
     font-family: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-    background: var(--paper);
-    color: var(--ink);
-    font-size: 17px;
-    line-height: 1.7;
-    letter-spacing: -0.01em;
-    word-break: keep-all;
-    overflow-wrap: break-word;
-    padding-bottom: 76px;
+    background: var(--white); color: var(--black);
+    font-size: var(--fs-18); line-height: 1.65; letter-spacing: -0.02em;
+    word-break: keep-all; overflow-wrap: break-word;
   }
-  a { color: inherit; }
-  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
+  a { color: inherit; text-decoration: none; }
+  .wrap { max-width: calc(var(--max) + var(--gutter) * 2); margin: 0 auto; padding: 0 var(--gutter); }
+
+  /* 사진 자리 (사진 받으면 <img>로 교체) */
+  .photo {
+    position: relative; overflow: hidden;
+    background: repeating-linear-gradient(135deg, #2b2b2b 0 16px, #242424 16px 32px);
+  }
+  .photo.light { background: repeating-linear-gradient(135deg, #e9e9e9 0 16px, #e2e2e2 16px 32px); }
+  .photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo .cap {
+    position: absolute; top: var(--sp-16); left: var(--sp-16);
+    font-size: var(--fs-12); font-weight: 600; color: #cfcfcf;
+    background: rgba(0,0,0,.55); padding: 4px 10px; border-radius: 4px;
+  }
+  .photo.light .cap { color: #555; background: rgba(255,255,255,.8); }
+
+  /* 버튼 */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 60px; padding: 0 var(--sp-32);
+    font: inherit; font-size: var(--fs-18); font-weight: 800;
+    border: 0; border-radius: 6px; cursor: pointer;
+    transition: transform .15s ease, background-color .15s ease;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.yellow { background: var(--yellow); color: var(--black); }
+  .btn.white { background: var(--white); color: var(--black); }
+  .btn.black { background: var(--black); color: var(--white); }
+  .btn:focus-visible, input:focus-visible, .pick input:focus-visible + span, summary:focus-visible {
+    outline: 3px solid var(--yellow); outline-offset: 2px;
+  }
 
   /* 상단 */
-  .top {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 18px 0;
-    font-size: 14px;
-    border-bottom: 1px solid var(--ink);
+  .gnb {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+    color: var(--white);
   }
-  .brand { font-weight: 800; letter-spacing: -0.02em; font-size: 16px; }
-  .top a { text-decoration: none; color: var(--ink-2); }
+  .gnb .wrap { display: flex; align-items: center; justify-content: space-between; height: 80px; }
+  .logo { font-weight: 900; font-size: var(--fs-20); letter-spacing: -0.03em; }
+  .gnb nav { display: flex; gap: var(--sp-32); align-items: center; font-size: var(--fs-16); font-weight: 600; }
+  .gnb nav a:not(.btn) { opacity: .85; }
+  .gnb nav a:not(.btn):hover { opacity: 1; }
+  .gnb .btn { height: 44px; padding: 0 var(--sp-24); font-size: var(--fs-16); }
 
   /* 첫 화면 */
-  .hero { padding: 56px 0 48px; }
-  .kicker { font-size: 14px; font-weight: 600; color: var(--accent); margin-bottom: 20px; }
-  .hero h1 {
-    font-size: clamp(38px, 10.5vw, 88px);
-    line-height: 1.14;
-    font-weight: 800;
-    letter-spacing: -0.045em;
+  .hero { position: relative; min-height: 760px; height: 100vh; max-height: 920px; color: var(--white); display: flex; align-items: flex-end; }
+  .hero > .photo { position: absolute; inset: 0; }
+  .hero > .photo .cap { top: 96px; left: auto; right: var(--gutter); }
+  .hero::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.1) 100%),
+                linear-gradient(0deg, rgba(0,0,0,.6) 0%, transparent 45%);
   }
-  .hero h1 .soft { color: var(--ink-3); font-weight: 700; }
-  .hero p.lead {
-    margin-top: 28px;
-    font-size: clamp(17px, 2.4vw, 21px);
-    color: var(--ink-2);
-    max-width: 30em;
+  .hero .wrap { position: relative; z-index: 2; width: 100%; padding-bottom: var(--sp-96); }
+  .tag {
+    display: inline-block; background: var(--yellow); color: var(--black);
+    font-size: var(--fs-14); font-weight: 800; padding: 6px 12px; margin-bottom: var(--sp-24);
   }
-  .cta-row { display: flex; gap: 10px; margin-top: 36px; flex-wrap: wrap; }
-  .btn {
-    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    height: 56px; padding: 0 26px;
-    font: inherit; font-weight: 700; font-size: 17px;
-    border: 1.5px solid var(--ink); border-radius: 0;
-    background: transparent; color: var(--ink);
-    text-decoration: none; cursor: pointer;
-  }
-  .btn.primary { background: var(--ink); color: var(--paper); }
-  .btn:hover { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  .cta-row .btn { flex: 1 1 200px; }
+  .hero h1 { font-size: var(--fs-72); line-height: 1.16; font-weight: 900; letter-spacing: -0.05em; }
+  .hero h1 em { font-style: normal; color: var(--yellow); }
+  .hero .sub { margin-top: var(--sp-24); font-size: var(--fs-20); color: #e6e6e6; max-width: 34em; }
+  .hero .ctas { display: flex; gap: var(--sp-12); margin-top: var(--sp-48); }
+  .hero .ctas .btn { min-width: 220px; }
 
-  /* 숫자 */
-  .numbers { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
-  .numbers ol { list-style: none; display: grid; grid-template-columns: 1fr; }
-  .numbers li { padding: 26px 0; border-top: 1px solid var(--rule); display: grid; grid-template-columns: 1fr; gap: 4px; }
-  .numbers li:first-child { border-top: 0; }
-  .num {
-    font-size: clamp(40px, 11vw, 64px);
-    font-weight: 800; letter-spacing: -0.05em; line-height: 1.05;
-    font-variant-numeric: tabular-nums;
-  }
-  .num small { font-size: 0.42em; font-weight: 700; letter-spacing: -0.02em; margin-left: 4px; }
-  .num-label { color: var(--ink-2); font-size: 16px; }
-  .numbers .sum {
-    padding: 22px 0 28px; border-top: 1px solid var(--rule);
-    font-size: clamp(19px, 3vw, 24px); font-weight: 700; letter-spacing: -0.03em;
-  }
-  .numbers .sum em { font-style: normal; color: var(--accent); }
+  /* 숫자 띠 */
+  .band { background: var(--yellow); }
+  .band ul { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); }
+  .band li { padding: var(--sp-48) var(--sp-32) var(--sp-48) 0; }
+  .band li + li { padding-left: var(--sp-32); border-left: 2px solid rgba(0,0,0,.12); }
+  .band b { display: block; font-size: var(--fs-56); font-weight: 900; line-height: 1.1; letter-spacing: -0.05em; }
+  .band b small { font-size: var(--fs-28); font-weight: 800; margin-left: 4px; }
+  .band span { display: block; margin-top: var(--sp-8); font-size: var(--fs-18); font-weight: 600; }
 
   /* 섹션 공통 */
-  section.block { padding: 72px 0; }
-  .label {
-    font-size: 13px; font-weight: 700; letter-spacing: 0.02em;
-    color: var(--ink-3); margin-bottom: 14px;
-  }
-  h2 {
-    font-size: clamp(28px, 6.4vw, 48px);
-    line-height: 1.22; font-weight: 800; letter-spacing: -0.04em;
-    margin-bottom: 36px;
-  }
-  h3 { font-size: 21px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.4; }
-  .body p + p { margin-top: 12px; }
-  .muted { color: var(--ink-2); }
+  .sec { padding: var(--sp-140) 0; }
+  .eyebrow { font-size: var(--fs-16); font-weight: 800; color: var(--gray-5); margin-bottom: var(--sp-16); }
+  .dark .eyebrow { color: var(--yellow); }
+  h2 { font-size: var(--fs-56); line-height: 1.22; font-weight: 900; letter-spacing: -0.05em; }
+  h3 { font-size: var(--fs-28); line-height: 1.35; font-weight: 800; letter-spacing: -0.04em; }
+  .lead { margin-top: var(--sp-24); font-size: var(--fs-20); color: var(--gray-5); }
+  .dark { background: var(--black); color: var(--white); }
+  .dark .lead { color: var(--gray-3); }
 
-  /* 시장 */
-  .markets { display: grid; gap: 0; }
-  .market { padding: 28px 0; border-top: 1px solid var(--ink); display: grid; gap: 14px; }
-  .market .tag { font-size: 13px; font-weight: 700; color: var(--accent); }
-  .market .note {
-    margin-top: 4px; font-size: 15px; color: var(--ink-2);
-    padding-left: 12px; border-left: 2px solid var(--accent);
+  /* 시장 01: 베이비페어 */
+  .fair { display: grid; grid-template-columns: 7fr 5fr; gap: var(--sp-64); align-items: center; }
+  .fair .photo { aspect-ratio: 4 / 3; border-radius: 8px; }
+  .facts { list-style: none; margin-top: var(--sp-48); border-top: 2px solid var(--black); }
+  .facts li { display: flex; justify-content: space-between; gap: var(--sp-24); padding: var(--sp-24) 0; border-bottom: 1px solid var(--line); }
+  .facts li b { font-weight: 800; }
+  .facts li span { color: var(--gray-5); text-align: right; }
+  .class { display: grid; grid-template-columns: 5fr 7fr; gap: var(--sp-64); align-items: center; margin-top: var(--sp-96); }
+  .class .photo { aspect-ratio: 3 / 2; border-radius: 8px; }
+  .class p { margin-top: var(--sp-16); color: var(--gray-5); font-size: var(--fs-20); }
+
+  /* 시장 02: 사업자 DB */
+  .db { display: grid; grid-template-columns: 5fr 6fr; gap: var(--sp-96); align-items: center; }
+  .feed { background: var(--black-2); border: 1px solid var(--line-dark); border-radius: 12px; padding: var(--sp-24); position: relative; }
+  .feed .sample {
+    position: absolute; top: -14px; right: var(--sp-24);
+    background: var(--yellow); color: var(--black); font-size: var(--fs-12); font-weight: 800; padding: 4px 10px;
   }
+  .feed-head { display: flex; justify-content: space-between; font-size: var(--fs-14); color: var(--gray-3); padding-bottom: var(--sp-16); border-bottom: 1px solid var(--line-dark); }
+  .item { padding: var(--sp-24) 0; border-bottom: 1px solid var(--line-dark); display: grid; grid-template-columns: 1fr auto; gap: 6px var(--sp-16); }
+  .item:last-child { border-bottom: 0; padding-bottom: var(--sp-8); }
+  .item .who { font-size: var(--fs-20); font-weight: 800; }
+  .item .time { font-size: var(--fs-14); color: var(--gray-3); }
+  .item .meta { grid-column: 1 / -1; font-size: var(--fs-16); color: var(--gray-3); }
+  .item .want { grid-column: 1 / -1; justify-self: start; font-size: var(--fs-14); font-weight: 700; color: var(--yellow); border: 1px solid #5a4f12; padding: 3px 10px; border-radius: 4px; }
+  .proof { list-style: none; margin-top: var(--sp-48); display: grid; gap: var(--sp-16); }
+  .proof li { padding-left: var(--sp-24); position: relative; color: #dcdcdc; }
+  .proof li::before { content: ""; position: absolute; left: 0; top: 11px; width: 10px; height: 10px; background: var(--yellow); }
+  .promise { margin-top: var(--sp-48); padding: var(--sp-24) var(--sp-32); border: 1px solid var(--yellow); color: var(--yellow); font-weight: 700; font-size: var(--fs-20); }
+  .db-photos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-16); margin-top: var(--sp-96); }
+  .db-photos .photo { aspect-ratio: 16 / 10; border-radius: 8px; }
 
   /* 성장 단계 */
-  .steps { list-style: none; counter-reset: step; }
-  .steps li {
-    counter-increment: step;
-    display: grid; grid-template-columns: 56px 1fr; gap: 0 12px;
-    padding: 24px 0; border-top: 1px solid var(--rule);
-  }
-  .steps li::before {
-    content: counter(step, decimal-leading-zero);
-    font-weight: 800; font-size: 28px; letter-spacing: -0.04em; line-height: 1.2;
-    color: var(--ink-3);
-  }
-  .steps li:last-child::before { color: var(--accent); }
-  .steps h3 { margin-bottom: 6px; }
-  .honest {
-    margin-top: 28px; padding: 22px 24px;
-    background: var(--paper-2);
-    font-weight: 600; letter-spacing: -0.02em;
-  }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-24); margin-top: var(--sp-64); }
+  .step { border-top: 4px solid var(--black); padding-top: var(--sp-32); }
+  .step .n { font-size: var(--fs-16); font-weight: 800; color: var(--gray-5); }
+  .step h3 { margin-top: var(--sp-8); }
+  .step p { margin-top: var(--sp-16); color: var(--gray-5); }
+  .step .where { display: inline-block; margin-top: var(--sp-24); font-size: var(--fs-14); font-weight: 700; background: var(--gray-1); padding: 6px 12px; border-radius: 4px; }
+  .step:last-child { border-top-color: var(--yellow); }
 
   /* 교육 */
-  .tracks { display: grid; gap: 0; }
-  .track { padding: 26px 0; border-top: 1px solid var(--ink); }
-  .track h3 { margin-bottom: 14px; }
-  .track ul { list-style: none; }
-  .track li { padding: 9px 0; border-bottom: 1px dashed var(--rule); }
-  .track li:last-child { border-bottom: 0; }
-  .after-tracks { margin-top: 24px; font-weight: 600; }
+  .tracks { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-24); margin-top: var(--sp-64); }
+  .track { background: var(--gray-1); border-radius: 12px; padding: var(--sp-48); }
+  .track ul { list-style: none; margin-top: var(--sp-24); }
+  .track li { padding: var(--sp-16) 0; border-top: 1px solid #dcdcdc; font-weight: 600; }
 
-  /* 신입 / 경력 (어두운 띠) */
-  .dark { background: var(--dark); color: var(--dark-ink); }
-  .dark .label { color: #9c9588; }
-  .dark .muted { color: #c9c2b5; }
-  .who { display: grid; gap: 0; }
-  .who > div { padding: 30px 0; border-top: 1px solid #3a362f; }
-  .who > div:first-child { border-top: 0; padding-top: 0; }
-  .who h3 { margin-bottom: 12px; font-size: 23px; }
-  .who .no { margin-top: 14px; font-size: 15px; color: #f0a37e; }
+  /* 신입 / 경력 */
+  .who-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-24); margin-top: var(--sp-64); }
+  .who-card { border: 2px solid var(--black); border-radius: 12px; padding: var(--sp-48); display: flex; flex-direction: column; }
+  .who-card p { margin-top: var(--sp-16); color: var(--gray-5); flex: 1; }
+  .who-card .btn { margin-top: var(--sp-32); align-self: flex-start; }
 
   /* FAQ */
-  .faq details { border-top: 1px solid var(--ink); }
-  .faq details:last-child { border-bottom: 1px solid var(--ink); }
-  .faq summary {
-    list-style: none; cursor: pointer;
-    display: flex; justify-content: space-between; gap: 16px; align-items: baseline;
-    padding: 22px 0; font-weight: 700; font-size: 18px; letter-spacing: -0.02em;
-  }
-  .faq summary::-webkit-details-marker { display: none; }
-  .faq summary::after { content: "+"; font-weight: 400; font-size: 24px; line-height: 1; color: var(--ink-3); }
-  .faq details[open] summary::after { content: "−"; }
-  .faq details p { padding: 0 0 24px; color: var(--ink-2); }
+  .faq-grid { display: grid; grid-template-columns: 4fr 8fr; gap: var(--sp-64); }
+  details { border-bottom: 1px solid var(--line); }
+  details:first-child { border-top: 2px solid var(--black); }
+  summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; gap: var(--sp-24); padding: var(--sp-32) 0; font-size: var(--fs-20); font-weight: 800; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; font-size: var(--fs-28); font-weight: 400; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  details p { padding-bottom: var(--sp-32); color: var(--gray-5); }
 
-  /* 지원 */
-  .apply { border-top: 1px solid var(--ink); }
-  form { display: grid; gap: 22px; max-width: 560px; }
-  .field label, .field legend { display: block; font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+  /* 신청 */
+  .apply-grid { display: grid; grid-template-columns: 5fr 6fr; gap: var(--sp-96); }
+  form { display: grid; gap: var(--sp-32); }
+  .q { font-weight: 800; font-size: var(--fs-18); margin-bottom: var(--sp-12); }
   fieldset { border: 0; }
+  .picks { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-8); }
+  .pick { position: relative; }
+  .pick input { position: absolute; opacity: 0; inset: 0; }
+  .pick span {
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    height: 56px; border-radius: 6px; background: var(--black-2); border: 1px solid var(--line-dark);
+    font-size: var(--fs-16); font-weight: 700; color: #dcdcdc; cursor: pointer;
+  }
+  .pick input:checked + span { background: var(--yellow); border-color: var(--yellow); color: var(--black); }
+  .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-8); }
   input[type=text], input[type=tel] {
-    width: 100%; height: 56px; padding: 0 16px;
-    font: inherit; font-size: 17px; color: var(--ink);
-    background: #fff; border: 1.5px solid var(--ink); border-radius: 0;
+    width: 100%; height: 56px; padding: 0 var(--sp-16); border-radius: 6px;
+    font: inherit; font-size: var(--fs-16); color: var(--white);
+    background: var(--black-2); border: 1px solid var(--line-dark);
   }
-  input:focus-visible, .choice input:focus-visible + span, .btn:focus-visible, summary:focus-visible {
-    outline: 3px solid var(--accent); outline-offset: 2px;
-  }
-  .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .choice { position: relative; }
-  .choice input { position: absolute; opacity: 0; inset: 0; }
-  .choice span {
-    display: flex; align-items: center; justify-content: center;
-    height: 56px; border: 1.5px solid var(--ink); background: #fff;
-    font-weight: 700; cursor: pointer;
-  }
-  .choice input:checked + span { background: var(--ink); color: var(--paper); }
-  .agree { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--ink-2); }
-  .agree input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--ink); flex: none; }
-  .error { color: var(--accent); font-size: 14px; font-weight: 600; min-height: 1em; }
-  .done { display: none; padding: 28px; background: var(--paper-2); font-weight: 600; }
-  .done strong { display: block; font-size: 22px; letter-spacing: -0.03em; margin-bottom: 6px; }
+  input::placeholder { color: #7a7a7a; }
+  .agree { display: flex; gap: var(--sp-12); align-items: flex-start; font-size: var(--fs-14); color: var(--gray-3); }
+  .agree input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--yellow); flex: none; }
+  .agree a { text-decoration: underline; }
+  .error { color: var(--yellow); font-size: var(--fs-14); font-weight: 700; min-height: 1.2em; }
+  form .btn { width: 100%; height: 64px; font-size: var(--fs-20); }
+  .done { display: none; padding: var(--sp-48); border: 1px solid var(--yellow); }
+  .done strong { display: block; font-size: var(--fs-28); color: var(--yellow); margin-bottom: var(--sp-8); }
+  .call { margin-top: var(--sp-48); padding-top: var(--sp-32); border-top: 1px solid var(--line-dark); color: var(--gray-3); }
 
-  footer { padding: 40px 0 28px; font-size: 13px; color: var(--ink-3); border-top: 1px solid var(--rule); margin-top: 72px; }
-  footer .brand { color: var(--ink); display: block; margin-bottom: 6px; }
+  footer { background: var(--black); color: var(--gray-5); font-size: var(--fs-14); border-top: 1px solid var(--line-dark); }
+  footer .wrap { display: flex; justify-content: space-between; padding-top: var(--sp-48); padding-bottom: var(--sp-48); }
+  footer .logo { color: var(--white); font-size: var(--fs-16); }
 
-  /* 모바일 하단 고정 버튼 */
-  .sticky {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
-    padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom));
-    background: var(--paper); border-top: 1px solid var(--ink);
-    transform: translateY(110%); transition: transform .25s ease;
-  }
-  .sticky.show { transform: none; }
-  .sticky .btn { width: 100%; }
-
-  @media (min-width: 760px) {
-    :root { --gutter: 40px; }
-    body { padding-bottom: 0; }
-    .hero { padding: 96px 0 80px; }
-    .cta-row .btn { flex: 0 0 auto; }
-    .numbers ol { grid-template-columns: repeat(3, 1fr); }
-    .numbers li { border-top: 0; border-left: 1px solid var(--rule); padding: 32px 28px; }
-    .numbers li:first-child { border-left: 0; padding-left: 0; }
-    section.block { padding: 112px 0; }
-    .split { display: grid; grid-template-columns: 4fr 7fr; gap: 56px; }
-    .split h2 { margin-bottom: 0; }
-    .market { grid-template-columns: 4fr 7fr; gap: 56px; padding: 36px 0; }
-    .tracks { grid-template-columns: 1fr 1fr; gap: 0 48px; }
-    .who { grid-template-columns: 1fr 1fr; gap: 0 64px; }
-    .who > div { border-top: 0; padding: 0; }
-    .who > div + div { border-left: 1px solid #3a362f; padding-left: 64px; }
-    .sticky { display: none; }
+  /* 모바일: 기본 줄바꿈만. 최적화는 PC 확정 후 */
+  @media (max-width: 1023px) {
+    :root { --gutter: 20px; }
+    .gnb nav a:not(.btn) { display: none; }
+    .hero h1 { font-size: 40px; }
+    .hero .ctas { flex-direction: column; }
+    h2 { font-size: 32px; }
+    .band ul, .fair, .class, .db, .steps, .tracks, .who-grid, .faq-grid, .apply-grid, .db-photos, .inputs { grid-template-columns: 1fr; }
+    .band li + li { padding-left: 0; border-left: 0; border-top: 2px solid rgba(0,0,0,.12); }
+    .band li { padding: var(--sp-24) 0; }
+    .sec { padding: var(--sp-96) 0; }
+    .fair, .class, .db, .apply-grid { gap: var(--sp-48); }
+    .picks { grid-template-columns: 1fr 1fr; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .sticky { transition: none; }
+    .btn { transition: none; }
+    .btn:hover { transform: none; }
   }
 </style>
 </head>
 <body>
 
-<div class="wrap">
-  <header class="top">
-    <span class="brand">인카다이렉트</span>
-    <a href="#apply">상담 신청</a>
-  </header>
-
-  <section class="hero" id="top">
-    <p class="kicker">설계사 모집 · 신입 / 경력</p>
-    <h1>다음 달엔<br>누구를 만나야 하지.<br><span class="soft">여기선 그 고민부터<br>없습니다.</span></h1>
-    <p class="lead">영업할 시장이 두 곳 있습니다. 젊은 부모님은 베이비페어에서, 사장님은 온라인 상담으로 만납니다.</p>
-    <div class="cta-row">
-      <a class="btn primary" href="#apply" data-career="new">처음이에요 →</a>
-      <a class="btn" href="#apply" data-career="exp">경력 있어요 →</a>
-    </div>
-  </section>
-</div>
-
-<div class="numbers">
+<header class="gnb">
   <div class="wrap">
-    <ol>
-      <li><span class="num">매주</span><span class="num-label">베이비페어. 갈 곳은 직접 고릅니다</span></li>
-      <li><span class="num">2~3<small>회 / 월</small></span><span class="num-label">산모교실</span></li>
-      <li><span class="num">2<small>건 / 평일 매일</small></span><span class="num-label">한 사람에게 배정되는 사업자 상담 DB, 무료</span></li>
-    </ol>
-    <p class="sum">한 달이면 사업자 대표님만 <em>40명</em> 넘게 만납니다.</p>
+    <span class="logo">인카다이렉트</span>
+    <nav>
+      <a href="#fair">베이비페어</a>
+      <a href="#db">사업자 DB</a>
+      <a href="#path">성장 과정</a>
+      <a href="#faq">자주 묻는 질문</a>
+      <a class="btn yellow" href="#apply">상담 신청</a>
+    </nav>
   </div>
-</div>
+</header>
 
-<!-- 사진 넣을 자리: 각 .market 안 오른쪽 열 아래에 <figure> 추가 -->
-<section class="block" id="market">
+<section class="hero">
+  <div class="photo"><span class="cap">사진 자리: 베이비페어 부스에서 상담 중인 장면 (가로 사진)</span></div>
   <div class="wrap">
-    <p class="label">고객은 여기서 만납니다</p>
-    <h2>시장이 먼저입니다.<br>실력은 만나면서 늡니다.</h2>
-    <div class="markets">
-      <article class="market">
-        <div><p class="tag">시장 01</p><h3>베이비페어</h3></div>
-        <div class="body">
-          <p>베이비페어는 매주 열립니다. 일정표를 보고 가고 싶은 박람회를 골라서 나갑니다.</p>
-          <p class="muted">태아보험, 어린이보험을 알아보러 온 부모님을 직접 만납니다. 먼저 알아보러 온 분들이라 대화가 빨리 열립니다. 처음 시작하는 분이 감을 잡기 가장 좋은 현장입니다.</p>
-        </div>
-      </article>
-      <article class="market">
-        <div><p class="tag">시장 01 +</p><h3>산모교실</h3></div>
-        <div class="body">
-          <p>매달 2~3번 산모교실이 열립니다.</p>
-          <p class="muted">출산을 앞둔 예비 부모님을 박람회보다 더 가까운 자리에서 만납니다.</p>
-        </div>
-      </article>
-      <article class="market">
-        <div><p class="tag">시장 02</p><h3>사업자 상담</h3></div>
-        <div class="body">
-          <p>매출이 확인된 법인, 개인사업자 대표님과의 상담이 평일 매일 2건씩, 무료로 배정됩니다.</p>
-          <p class="note">DB 값을 내고 시작하는 구조가 아닙니다.</p>
-        </div>
-      </article>
+    <span class="tag">인카다이렉트 신입 · 경력 설계사 모집</span>
+    <h1>영업할 데 없어서<br>고민이셨죠?<br><em>시장은 저희가 드릴게요.</em></h1>
+    <p class="sub">매주 베이비페어, 매달 산모교실, 평일엔 사업자 DB까지. 지인한테 연락 돌리지 않아도 고객을 만날 수 있어요.</p>
+    <div class="ctas">
+      <a class="btn yellow" href="#apply" data-career="new">신입으로 상담받기</a>
+      <a class="btn white" href="#apply" data-career="exp">경력으로 상담받기</a>
     </div>
   </div>
 </section>
 
-<section class="block" id="path" style="padding-top:0">
-  <div class="wrap split">
-    <div>
-      <p class="label">이렇게 올라갑니다</p>
-      <h2>부모님 상담에서<br>대표님 상담까지</h2>
+<section class="band">
+  <div class="wrap">
+    <ul>
+      <li><b>매주</b><span>베이비페어, 가고 싶은 곳만 골라서</span></li>
+      <li><b>2~3<small>회/월</small></b><span>산모교실</span></li>
+      <li><b>2<small>건/평일 매일</small></b><span>사업자 상담 DB, 돈 안 받아요</span></li>
+    </ul>
+  </div>
+</section>
+
+<section class="sec" id="fair">
+  <div class="wrap">
+    <div class="fair">
+      <div class="photo light"><span class="cap">사진 자리: 박람회장 전경, 사람 많은 장면</span></div>
+      <div>
+        <p class="eyebrow">시장 01 · 베이비페어</p>
+        <h2>보험 알아보러 온<br>부모님을 만나요</h2>
+        <p class="lead">태아보험, 어린이보험 궁금해서 먼저 부스로 오시는 분들이라 말 꺼내기가 어렵지 않아요. 처음 시작하는 분이 감 잡기 제일 좋은 현장이에요.</p>
+        <ul class="facts">
+          <li><b>일정</b><span>매주 열려요</span></li>
+          <li><b>참석</b><span>일정표 보고 직접 골라요</span></li>
+          <li><b>만나는 분</b><span>임신·출산·육아 중인 부모님</span></li>
+        </ul>
+      </div>
     </div>
-    <div>
-      <ol class="steps">
-        <li><div><h3>박람회에서 시작합니다</h3><p class="muted">처음 몇 달은 인보험 상담을 하면서 고객 앞에서 말하는 법을 익힙니다.</p></div></li>
-        <li><div><h3>사업자 상담에 같이 들어갑니다</h3><p class="muted">익숙해지면 선배 상담에 동행합니다. 처음엔 옆에서 듣기만 해도 됩니다.</p></div></li>
-        <li><div><h3>혼자 대표님을 만납니다</h3><p class="muted">정책자금, 법인전환, 정관변경까지 대표님께 직접 설명할 수 있게 됩니다.</p></div></li>
-      </ol>
-      <p class="honest">기간은 사람마다 다릅니다. "3개월이면 억대 연봉" 같은 말은 하지 않겠습니다.</p>
+    <div class="class">
+      <div>
+        <p class="eyebrow">시장 01 · 산모교실</p>
+        <h3>한 달에 2~3번은<br>산모교실에서 만나요</h3>
+        <p>출산 앞둔 예비 부모님을 박람회보다 더 가까운 자리에서 만나요. 한 분 한 분 이야기할 시간이 길어요.</p>
+      </div>
+      <div class="photo light"><span class="cap">사진 자리: 산모교실 진행 장면</span></div>
     </div>
   </div>
 </section>
 
-<section class="block" id="learn" style="padding-top:0">
+<section class="sec dark" id="db">
   <div class="wrap">
-    <p class="label">배우는 것</p>
-    <h2>교재로 끝나지 않습니다.<br>상담 자리에서 배웁니다.</h2>
+    <div class="db">
+      <div>
+        <p class="eyebrow">시장 02 · 사업자 상담 DB</p>
+        <h2>평일엔 매일<br>대표님 2명이<br>배정돼요</h2>
+        <p class="lead">매출 확인된 법인, 개인사업자 대표님이에요. DB 값은 안 받아요. 한 달이면 대표님만 40명 넘게 만나요.</p>
+        <ul class="proof">
+          <li>법인, 개인사업자 대표님만 배정</li>
+          <li>한 사람당 평일 매일 2건, 무료</li>
+          <li>정책자금, 법인전환, 정관변경 상담으로 이어져요</li>
+        </ul>
+        <p class="promise">면접 오시면 실제 배정 화면 그대로 보여드려요.</p>
+      </div>
+      <div class="feed" aria-label="DB 배정 화면 예시">
+        <span class="sample">예시 화면 · 실제 캡처로 교체 예정</span>
+        <div class="feed-head"><span>오늘 배정된 상담</span><span>2건</span></div>
+        <div class="item">
+          <span class="who">○○○ 대표님</span><span class="time">오전 10:24</span>
+          <span class="meta">제조업 · 법인 · 연매출 ○○억대</span>
+          <span class="want">상담 희망: 법인전환</span>
+        </div>
+        <div class="item">
+          <span class="who">○○○ 대표님</span><span class="time">오후 2:10</span>
+          <span class="meta">도소매업 · 개인사업자 · 연매출 ○○억대</span>
+          <span class="want">상담 희망: 정책자금</span>
+        </div>
+      </div>
+    </div>
+    <div class="db-photos">
+      <div class="photo"><span class="cap">사진 자리: 대표님 사무실 상담 장면 (뒷모습 가능)</span></div>
+      <div class="photo"><span class="cap">사진 자리: 법인교육 세미나</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" id="path">
+  <div class="wrap">
+    <p class="eyebrow">성장 과정</p>
+    <h2>부모님 상담에서 시작해서<br>대표님 상담까지 가요</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="n">STEP 1</span>
+        <h3>박람회에서 감 잡기</h3>
+        <p>처음 몇 달은 인보험 상담하면서 고객 앞에서 말하는 법부터 익혀요.</p>
+        <span class="where">베이비페어 · 산모교실</span>
+      </div>
+      <div class="step">
+        <span class="n">STEP 2</span>
+        <h3>사업자 상담 따라가기</h3>
+        <p>익숙해지면 선배 상담에 같이 들어가요. 처음엔 옆에서 듣기만 해도 괜찮아요.</p>
+        <span class="where">사업자 상담 동행</span>
+      </div>
+      <div class="step">
+        <span class="n">STEP 3</span>
+        <h3>혼자 대표님 만나기</h3>
+        <p>정책자금, 법인전환, 정관변경까지 직접 설명할 수 있게 돼요.</p>
+        <span class="where">법인 · 개인사업자 영업</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sec" style="padding-top:0">
+  <div class="wrap">
+    <p class="eyebrow">교육</p>
+    <h2>책상에서만 안 배워요.<br>상담 자리에 같이 들어가요.</h2>
     <div class="tracks">
       <div class="track">
-        <h3>인보험 트랙</h3>
+        <h3>인보험</h3>
         <ul>
-          <li>상품 구조와 보장 분석</li>
+          <li>상품 구조, 보장 분석</li>
           <li>박람회 상담 흐름</li>
           <li>계약 후 고객 관리</li>
         </ul>
       </div>
       <div class="track">
-        <h3>사업자 트랙</h3>
+        <h3>사업자</h3>
         <ul>
           <li>정책자금</li>
           <li>법인전환</li>
@@ -339,78 +390,92 @@
   </div>
 </section>
 
-<section class="block dark" id="who">
+<section class="sec" style="padding-top:0">
   <div class="wrap">
-    <p class="label">누구와 함께하나</p>
-    <h2>처음이든 경력이든,<br>필요한 건 같습니다.</h2>
-    <div class="who">
-      <div>
-        <h3>처음이신 분께</h3>
-        <p class="muted">보험을 몰라도 됩니다. 아는 사람이 많지 않아도 됩니다. 만날 사람은 저희가 연결해 드리고, 상담하는 법은 현장에서 같이 익힙니다.</p>
-        <p class="no">다만 사람 만나는 일이 싫으신 분과는 맞지 않습니다.</p>
+    <p class="eyebrow">이런 분을 찾아요</p>
+    <h2>처음이어도, 경력이 있어도</h2>
+    <div class="who-grid">
+      <div class="who-card">
+        <h3>보험이 처음이에요</h3>
+        <p>보험 몰라도, 아는 사람 많지 않아도 괜찮아요. 만날 사람은 저희가 연결해 드리고, 상담하는 법은 현장에서 같이 익혀요. 사람 만나는 걸 싫어하지만 않으면 돼요.</p>
+        <a class="btn black" href="#apply" data-career="new">신입으로 상담받기</a>
       </div>
-      <div>
-        <h3>경력이신 분께</h3>
-        <p class="muted">지인 시장이 바닥났거나, 인보험만으로는 단가에 한계를 느끼셨다면 사업자 시장이 다음 단계입니다. 상담 DB는 무료로 드리고, 법인 영업은 처음부터 가르칩니다.</p>
+      <div class="who-card">
+        <h3>경력이 있어요</h3>
+        <p>지인 시장은 바닥났고, 인보험만으로는 단가가 아쉬우셨다면 사업자 시장으로 넘어오세요. DB는 무료로 드리고, 법인 영업은 처음부터 알려드려요.</p>
+        <a class="btn black" href="#apply" data-career="exp">경력으로 상담받기</a>
       </div>
     </div>
   </div>
 </section>
 
-<section class="block faq" id="faq">
-  <div class="wrap split">
+<section class="sec" id="faq" style="padding-top:0">
+  <div class="wrap faq-grid">
     <div>
-      <p class="label">자주 묻는 질문</p>
-      <h2>면접 전에<br>다들 묻는 것</h2>
+      <p class="eyebrow">자주 묻는 질문</p>
+      <h2>면접 전에<br>다들 물어보세요</h2>
     </div>
     <div>
-      <details>
-        <summary>사업자 상담 DB는 비용이 드나요?</summary>
-        <p>아니요. 한 사람당 평일 매일 2건씩 무료로 배정됩니다.</p>
+      <details open>
+        <summary>사업자 DB, 돈 내야 하나요?</summary>
+        <p>아니요. 한 사람당 평일 매일 2건씩 무료로 드려요.</p>
       </details>
       <details>
         <summary>박람회는 매번 나가야 하나요?</summary>
-        <p>아니요. 매주 열리는 박람회 중에서 가고 싶은 곳을 골라서 나갑니다.</p>
+        <p>아니요. 매주 열리는 박람회 중에서 가고 싶은 곳만 골라서 나가요.</p>
       </details>
       <details>
-        <summary>보험을 하나도 몰라도 사업자 영업을 할 수 있나요?</summary>
-        <p>바로는 어렵습니다. 그래서 인보험부터 시작하고, 사업자 상담은 동행부터 합니다.</p>
+        <summary>보험을 하나도 몰라도 사업자 영업이 되나요?</summary>
+        <p>바로는 어려워요. 그래서 인보험부터 시작하고, 사업자 상담은 선배 동행부터 해요.</p>
+      </details>
+      <details>
+        <summary>신입은 뭐부터 하나요?</summary>
+        <p>베이비페어와 산모교실에서 인보험 상담부터 해요. 고객 앞에서 말하는 게 익숙해지면 사업자 상담으로 넘어가요.</p>
       </details>
     </div>
   </div>
 </section>
 
-<section class="block apply" id="apply">
-  <div class="wrap split">
+<section class="sec dark" id="apply">
+  <div class="wrap apply-grid">
     <div>
-      <p class="label">상담 신청</p>
-      <h2>전화 한 통으로<br>먼저 이야기해요</h2>
-      <p class="muted" style="margin-top:20px">이름, 연락처, 경력 유무만 남겨주세요. 이야기 나눠보고, 맞으면 그때 만납니다.</p>
+      <p class="eyebrow">상담 신청</p>
+      <h2>30초면 끝나요.<br>전화로 먼저<br>얘기해봐요.</h2>
+      <p class="lead">남겨주시면 저희가 먼저 연락드려요. 얘기 나눠보고 맞으면 그때 만나요.</p>
+      <p class="call">전화가 편하시면 <b style="color:#fff">[전화번호 자리]</b></p>
     </div>
     <div>
       <form id="applyForm" novalidate>
-        <div class="field">
-          <label for="name">이름</label>
-          <input id="name" name="name" type="text" autocomplete="name" required>
-        </div>
-        <div class="field">
-          <label for="phone">연락처</label>
-          <input id="phone" name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="010-0000-0000" required>
-        </div>
-        <fieldset class="field">
-          <legend>보험 영업 경력</legend>
-          <div class="choices">
-            <label class="choice"><input type="radio" name="career" value="new" required><span>처음이에요</span></label>
-            <label class="choice"><input type="radio" name="career" value="exp"><span>경력 있어요</span></label>
+        <fieldset>
+          <legend class="q">1. 보험 영업 경력</legend>
+          <div class="picks">
+            <label class="pick"><input type="radio" name="career" value="new"><span>처음이에요</span></label>
+            <label class="pick"><input type="radio" name="career" value="1-3"><span>1~3년</span></label>
+            <label class="pick"><input type="radio" name="career" value="4+"><span>4년 이상</span></label>
           </div>
         </fieldset>
-        <label class="agree"><input type="checkbox" name="agree" required><span>상담 연락을 위해 이름과 연락처를 수집하는 데 동의합니다. 상담 외 용도로 쓰지 않습니다.</span></label>
+        <fieldset>
+          <legend class="q">2. 관심 있는 시장</legend>
+          <div class="picks">
+            <label class="pick"><input type="radio" name="market" value="fair"><span>베이비페어</span></label>
+            <label class="pick"><input type="radio" name="market" value="biz"><span>사업자</span></label>
+            <label class="pick"><input type="radio" name="market" value="both"><span>둘 다</span></label>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend class="q">3. 이름, 연락처</legend>
+          <div class="inputs">
+            <input type="text" name="name" placeholder="이름" autocomplete="name" aria-label="이름">
+            <input type="tel" name="phone" placeholder="010-0000-0000" inputmode="numeric" autocomplete="tel" aria-label="연락처">
+          </div>
+        </fieldset>
+        <label class="agree"><input type="checkbox" name="agree"><span>상담 연락을 위한 개인정보 수집에 동의해요. <a href="#">개인정보처리방침</a></span></label>
         <p class="error" id="formError" role="alert"></p>
-        <button class="btn primary" type="submit">상담 신청하기</button>
+        <button class="btn yellow" type="submit">상담 신청하기</button>
       </form>
       <div class="done" id="formDone" role="status">
-        <strong>신청 받았습니다.</strong>
-        남겨주신 번호로 먼저 연락드리겠습니다.
+        <strong>신청 받았어요.</strong>
+        남겨주신 번호로 먼저 연락드릴게요.
       </div>
     </div>
   </div>
@@ -418,26 +483,22 @@
 
 <footer>
   <div class="wrap">
-    <span class="brand">인카다이렉트</span>
-    설계사 모집 안내
+    <span class="logo">인카다이렉트</span>
+    <span><a href="#">개인정보처리방침</a></span>
   </div>
 </footer>
 
-<div class="sticky" id="sticky"><a class="btn primary" href="#apply">상담 신청하기</a></div>
-
 <script>
-  // 신청 받을 곳이 정해지면 여기에 주소를 넣는다 (예: 구글 Apps Script 웹앱 URL)
+  // 신청 받을 곳이 정해지면 주소를 넣는다 (예: 구글 Apps Script 웹앱 URL)
   const ENDPOINT = '';
-
   const form = document.getElementById('applyForm');
   const err = document.getElementById('formError');
 
-  document.querySelectorAll('[data-career]').forEach(a => {
-    a.addEventListener('click', () => {
-      const r = form.querySelector(`input[name=career][value=${a.dataset.career}]`);
-      if (r) r.checked = true;
-    });
-  });
+  document.querySelectorAll('[data-career]').forEach(a => a.addEventListener('click', () => {
+    const v = a.dataset.career === 'new' ? 'new' : '1-3';
+    const r = form.querySelector(`input[name=career][value="${v}"]`);
+    if (r && !form.querySelector('input[name=career]:checked')) r.checked = true;
+  }));
 
   form.phone.addEventListener('input', e => {
     const d = e.target.value.replace(/\D/g, '').slice(0, 11);
@@ -447,29 +508,19 @@
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const data = Object.fromEntries(new FormData(form));
+    if (!data.career) return err.textContent = '경력을 골라주세요.';
+    if (!data.market) return err.textContent = '관심 있는 시장을 골라주세요.';
     if (!data.name || !data.name.trim()) return err.textContent = '이름을 적어주세요.';
     if (!/^01\d-?\d{3,4}-?\d{4}$/.test(data.phone || '')) return err.textContent = '연락처를 다시 확인해주세요.';
-    if (!data.career) return err.textContent = '경력 유무를 골라주세요.';
     if (!data.agree) return err.textContent = '개인정보 수집에 동의해주세요.';
     err.textContent = '';
     if (ENDPOINT) {
-      try {
-        await fetch(ENDPOINT, { method: 'POST', body: new URLSearchParams(data) });
-      } catch (_) {
-        return err.textContent = '전송에 실패했습니다. 잠시 후 다시 시도해주세요.';
-      }
+      try { await fetch(ENDPOINT, { method: 'POST', body: new URLSearchParams(data) }); }
+      catch (_) { return err.textContent = '전송에 실패했어요. 잠시 후 다시 시도해주세요.'; }
     }
     form.style.display = 'none';
     document.getElementById('formDone').style.display = 'block';
   });
-
-  const sticky = document.getElementById('sticky');
-  const hero = document.getElementById('top');
-  const apply = document.getElementById('apply');
-  let pastHero = false, atApply = false;
-  const toggle = () => sticky.classList.toggle('show', pastHero && !atApply);
-  new IntersectionObserver(([en]) => { pastHero = !en.isIntersecting; toggle(); }).observe(hero);
-  new IntersectionObserver(([en]) => { atApply = en.isIntersecting; toggle(); }).observe(apply);
 </script>
 </body>
 </html>
