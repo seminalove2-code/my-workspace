@@ -68,46 +68,42 @@
     outline: 3px solid var(--yellow); outline-offset: 2px;
   }
 
-  /* 상단 */
-  .gnb {
-    position: absolute; top: 0; left: 0; right: 0; z-index: 5;
-    color: var(--white);
+  /* 첫 화면: 좌우 분할 */
+  .split {
+    display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr;
+    height: 100vh; min-height: 780px; max-height: 1000px;
+    transition: grid-template-columns .5s ease;
   }
-  .gnb .wrap { display: flex; align-items: center; justify-content: space-between; height: 80px; }
+  .split:has(.fair-panel:hover) { grid-template-columns: 1.18fr 1fr; }
+  .split:has(.db-panel:hover) { grid-template-columns: 1fr 1.18fr; }
+  .split-head {
+    grid-column: 1 / -1; grid-row: 1;
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sp-24);
+    height: 76px; padding: 0 var(--gutter); background: var(--white); border-bottom: 2px solid var(--black);
+  }
+  .split-head p { font-size: var(--fs-18); font-weight: 600; }
+  .split-head .btn { height: 44px; padding: 0 var(--sp-24); font-size: var(--fs-16); }
   .logo { font-weight: 900; font-size: var(--fs-20); letter-spacing: -0.03em; }
-  .gnb nav { display: flex; gap: var(--sp-32); align-items: center; font-size: var(--fs-16); font-weight: 600; }
-  .gnb nav a:not(.btn) { opacity: .85; }
-  .gnb nav a:not(.btn):hover { opacity: 1; }
-  .gnb .btn { height: 44px; padding: 0 var(--sp-24); font-size: var(--fs-16); }
-
-  /* 첫 화면 */
-  .hero { position: relative; min-height: 760px; height: 100vh; max-height: 920px; color: var(--white); display: flex; align-items: flex-end; }
-  .hero > .photo { position: absolute; inset: 0; }
-  .hero > .photo .cap { top: 96px; left: auto; right: var(--gutter); }
-  .hero::after {
-    content: ""; position: absolute; inset: 0;
-    background: linear-gradient(90deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.1) 100%),
-                linear-gradient(0deg, rgba(0,0,0,.6) 0%, transparent 45%);
-  }
-  .hero .wrap { position: relative; z-index: 2; width: 100%; padding-bottom: var(--sp-96); }
-  .tag {
-    display: inline-block; background: var(--yellow); color: var(--black);
-    font-size: var(--fs-14); font-weight: 800; padding: 6px 12px; margin-bottom: var(--sp-24);
-  }
-  .hero h1 { font-size: var(--fs-72); line-height: 1.16; font-weight: 900; letter-spacing: -0.05em; }
-  .hero h1 em { font-style: normal; color: var(--yellow); }
-  .hero .sub { margin-top: var(--sp-24); font-size: var(--fs-20); color: #e6e6e6; max-width: 34em; }
-  .hero .ctas { display: flex; gap: var(--sp-12); margin-top: var(--sp-48); }
-  .hero .ctas .btn { min-width: 220px; }
-
-  /* 숫자 띠 */
-  .band { background: var(--yellow); }
-  .band ul { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); }
-  .band li { padding: var(--sp-48) var(--sp-32) var(--sp-48) 0; }
-  .band li + li { padding-left: var(--sp-32); border-left: 2px solid rgba(0,0,0,.12); }
-  .band b { display: block; font-size: var(--fs-56); font-weight: 900; line-height: 1.1; letter-spacing: -0.05em; }
-  .band b small { font-size: var(--fs-28); font-weight: 800; margin-left: 4px; }
-  .band span { display: block; margin-top: var(--sp-8); font-size: var(--fs-18); font-weight: 600; }
+  .panel { grid-row: 2; position: relative; overflow: hidden; display: flex; align-items: flex-end; }
+  .panel-in { position: relative; z-index: 2; width: 100%; padding: var(--sp-64) var(--sp-64) var(--sp-64); }
+  .fair-panel { color: var(--white); }
+  .fair-panel .photo { position: absolute; inset: 0; }
+  .fair-panel .photo .cap { top: var(--sp-24); left: var(--sp-24); }
+  .fair-panel::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0,0,0,.82) 0%, rgba(0,0,0,.2) 60%, rgba(0,0,0,.05) 100%); }
+  .db-panel { background: var(--yellow); color: var(--black); }
+  .panel-tag { display: inline-block; font-size: var(--fs-16); font-weight: 800; padding: 6px 12px; margin-bottom: var(--sp-24); }
+  .fair-panel .panel-tag { background: var(--yellow); color: var(--black); }
+  .db-panel .panel-tag { background: var(--black); color: var(--yellow); }
+  .big { font-size: 128px; line-height: 1; font-weight: 900; letter-spacing: -0.06em; }
+  .big-sub { font-size: var(--fs-56); line-height: 1.15; font-weight: 900; letter-spacing: -0.05em; margin-top: var(--sp-8); }
+  .panel-desc { margin-top: var(--sp-24); font-size: var(--fs-20); font-weight: 500; }
+  .fair-panel .panel-desc { color: #e6e6e6; }
+  .panel-more { display: inline-block; margin-top: var(--sp-32); font-size: var(--fs-18); font-weight: 800; border-bottom: 2px solid currentColor; padding-bottom: 2px; }
+  .mini-feed { position: relative; margin-top: var(--sp-32); display: grid; gap: var(--sp-8); max-width: 460px; }
+  .mini { background: var(--black); color: var(--white); border-radius: 8px; padding: var(--sp-16) var(--sp-24); display: grid; gap: 2px; }
+  .mini b { font-size: var(--fs-18); }
+  .mini span { font-size: var(--fs-14); color: var(--gray-3); }
+  .mini-sample { position: absolute; top: -10px; right: -10px; z-index: 1; background: var(--white); font-size: var(--fs-12); font-weight: 800; padding: 2px 8px; border: 1px solid var(--black); }
 
   /* 섹션 공통 */
   .sec { padding: var(--sp-140) 0; }
@@ -219,59 +215,58 @@
   /* 모바일: 기본 줄바꿈만. 최적화는 PC 확정 후 */
   @media (max-width: 1023px) {
     :root { --gutter: 20px; }
-    .gnb nav a:not(.btn) { display: none; }
-    .hero h1 { font-size: 40px; }
-    .hero .ctas { flex-direction: column; }
+    .split { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; max-height: none; min-height: 0; }
+    .split-head { grid-row: 1; }
+    .split-head p { display: none; }
+    .panel { grid-row: auto; min-height: 560px; }
+    .panel-in { padding: var(--sp-48) var(--gutter); }
+    .big { font-size: 72px; }
+    .big-sub { font-size: 32px; }
     h2 { font-size: 32px; }
-    .band ul, .fair, .class, .db, .steps, .tracks, .who-grid, .faq-grid, .apply-grid, .db-photos, .inputs { grid-template-columns: 1fr; }
-    .band li + li { padding-left: 0; border-left: 0; border-top: 2px solid rgba(0,0,0,.12); }
-    .band li { padding: var(--sp-24) 0; }
+    .fair, .class, .db, .steps, .tracks, .who-grid, .faq-grid, .apply-grid, .db-photos, .inputs { grid-template-columns: 1fr; }
     .sec { padding: var(--sp-96) 0; }
     .fair, .class, .db, .apply-grid { gap: var(--sp-48); }
     .picks { grid-template-columns: 1fr 1fr; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .btn { transition: none; }
+    .btn, .split { transition: none; }
     .btn:hover { transform: none; }
   }
 </style>
 </head>
 <body>
 
-<header class="gnb">
-  <div class="wrap">
-    <span class="logo">인카다이렉트</span>
-    <nav>
-      <a href="#fair">베이비페어</a>
-      <a href="#db">사업자 DB</a>
-      <a href="#path">성장 과정</a>
-      <a href="#faq">자주 묻는 질문</a>
-      <a class="btn yellow" href="#apply">상담 신청</a>
-    </nav>
-  </div>
-</header>
 
-<section class="hero">
-  <div class="photo"><span class="cap">사진 자리: 베이비페어 부스에서 상담 중인 장면 (가로 사진)</span></div>
-  <div class="wrap">
-    <span class="tag">인카다이렉트 신입 · 경력 설계사 모집</span>
-    <h1>영업할 데 없어서<br>고민이셨죠?<br><em>시장은 저희가 드릴게요.</em></h1>
-    <p class="sub">매주 베이비페어, 매달 산모교실, 평일엔 사업자 DB까지. 지인한테 연락 돌리지 않아도 고객을 만날 수 있어요.</p>
-    <div class="ctas">
-      <a class="btn yellow" href="#apply" data-career="new">신입으로 상담받기</a>
-      <a class="btn white" href="#apply" data-career="exp">경력으로 상담받기</a>
+<section class="split" aria-label="영업할 시장 두 곳">
+  <a class="panel fair-panel" href="#fair">
+    <div class="photo"><span class="cap">사진 자리: 베이비페어 부스, 상담 중인 장면 (세로로 잘려도 되는 사진)</span></div>
+    <div class="panel-in">
+      <span class="panel-tag">시장 01 · 베이비페어</span>
+      <p class="big">매주</p>
+      <p class="big-sub">박람회가 열려요</p>
+      <p class="panel-desc">가고 싶은 박람회만 골라서 나가요.<br>한 달에 2~3번은 산모교실도 있어요.</p>
+      <span class="panel-more">베이비페어 자세히 보기 →</span>
     </div>
-  </div>
-</section>
-
-<section class="band">
-  <div class="wrap">
-    <ul>
-      <li><b>매주</b><span>베이비페어, 가고 싶은 곳만 골라서</span></li>
-      <li><b>2~3<small>회/월</small></b><span>산모교실</span></li>
-      <li><b>2<small>건/평일 매일</small></b><span>사업자 상담 DB, 돈 안 받아요</span></li>
-    </ul>
+  </a>
+  <a class="panel db-panel" href="#db">
+    <div class="panel-in">
+      <span class="panel-tag">시장 02 · 사업자 DB</span>
+      <p class="big">매일 2건</p>
+      <p class="big-sub">대표님이 배정돼요</p>
+      <p class="panel-desc">평일 기준, 한 사람당 매일 2건.<br>매출 확인된 법인·개인사업자 대표님, DB 값은 0원.</p>
+      <div class="mini-feed" aria-hidden="true">
+        <span class="mini-sample">예시</span>
+        <div class="mini"><b>○○○ 대표님</b><span>제조업 · 법인 · 상담 희망 법인전환</span></div>
+        <div class="mini"><b>○○○ 대표님</b><span>도소매업 · 개인사업자 · 상담 희망 정책자금</span></div>
+      </div>
+      <span class="panel-more">사업자 DB 자세히 보기 →</span>
+    </div>
+  </a>
+  <div class="split-head">
+    <span class="logo">인카다이렉트</span>
+    <p>영업할 데 없어서 고민이셨죠? <b>시장은 저희가 드릴게요.</b></p>
+    <a class="btn black" href="#apply">상담 신청</a>
   </div>
 </section>
 
