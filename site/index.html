@@ -226,24 +226,101 @@
   footer .logo { color: var(--white); font-size: var(--fs-16); }
 
   /* 모바일: 기본 줄바꿈만. 최적화는 PC 확정 후 */
+  /* 모바일 하단 고정 버튼 (PC에서는 숨김) */
+  .m-cta { display: none; }
+
+  /* 태블릿 */
   @media (max-width: 1023px) {
-    :root { --gutter: 20px; }
-    .split { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; max-height: none; min-height: 0; }
-    .split-head { grid-row: 1; }
+    :root { --gutter: 24px; }
+    .split { grid-template-columns: 1fr 1fr; height: auto; max-height: none; min-height: 640px; }
+    .split:has(.fair-panel:hover), .split:has(.db-panel:hover) { grid-template-columns: 1fr 1fr; }
     .split-head p { display: none; }
-    .panel { grid-row: auto; min-height: 560px; }
     .panel-in { padding: var(--sp-48) var(--gutter); }
-    .big { font-size: 72px; }
-    .big-sub { font-size: 32px; }
-    h2 { font-size: 32px; }
-    .fair, .class, .db, .steps, .tracks, .who-grid, .faq-grid, .apply-grid, .db-photos, .inputs { grid-template-columns: 1fr; }
+    .big { font-size: 88px; }
+    .big-sub { font-size: 36px; }
+    .panel-desc { font-size: var(--fs-16); }
+    h2 { font-size: 40px; }
     .sec { padding: var(--sp-96) 0; }
-    .fair, .class, .db, .apply-grid { gap: var(--sp-48); }
-    .picks { grid-template-columns: 1fr 1fr; }
+    .fair, .class, .db, .apply-grid, .faq-grid { grid-template-columns: 1fr; gap: var(--sp-48); }
+    .class > div:first-child { order: 2; }
+    .db-photos { margin-top: var(--sp-48); }
+    .steps { grid-template-columns: 1fr; gap: var(--sp-32); margin-top: var(--sp-48); }
+    .tracks, .who-grid { margin-top: var(--sp-48); }
+  }
+
+  /* 휴대폰: 첫 화면에 두 시장이 위아래로 같이 보이게 */
+  @media (max-width: 640px) {
+    :root { --gutter: 20px; }
+    body { font-size: var(--fs-16); padding-bottom: 76px; }
+    .split { grid-template-columns: 1fr; grid-template-rows: auto 1fr 1fr; min-height: 0; height: 100svh; max-height: 860px; }
+    .split-head { height: 60px; padding: 0 var(--gutter); }
+    .split-head .logo { font-size: var(--fs-18); }
+    .split-head .btn { height: 38px; padding: 0 var(--sp-16); font-size: var(--fs-14); border-radius: 4px; }
+    .panel { grid-row: auto; min-height: 300px; }
+    .panel-in { padding: var(--sp-24) var(--gutter) var(--sp-24); }
+    .fair-panel .photo .cap { top: var(--sp-12); left: var(--sp-12); font-size: 11px; }
+    .panel-tag { font-size: 13px; padding: 4px 8px; margin-bottom: var(--sp-12); }
+    .big { font-size: 64px; }
+    .big-sub { font-size: 26px; margin-top: 4px; }
+    .panel-desc { margin-top: var(--sp-12); font-size: 15px; line-height: 1.5; }
+    .panel-desc br { display: none; }
+    .mini-feed { display: none; }
+    .panel-more { margin-top: var(--sp-12); font-size: 15px; }
+
+    h2 { font-size: 30px; line-height: 1.28; }
+    h3 { font-size: 22px; }
+    .eyebrow { font-size: 14px; margin-bottom: var(--sp-12); }
+    .lead { font-size: 17px; margin-top: var(--sp-16); }
+    .sec { padding: var(--sp-64) 0; }
+    .fair, .class, .db, .apply-grid, .faq-grid { gap: var(--sp-32); }
+    .fair .photo, .class .photo { aspect-ratio: 4 / 3; }
+    .facts { margin-top: var(--sp-32); }
+    .facts li { padding: var(--sp-16) 0; font-size: 15px; }
+    .class { margin-top: var(--sp-64); }
+    .class p { font-size: 16px; }
+
+    .feed { padding: var(--sp-16); }
+    .feed .sample { right: var(--sp-12); }
+    .item { padding: var(--sp-16) 0; }
+    .item .who { font-size: 18px; }
+    .item .meta { font-size: 14px; }
+    .proof { margin-top: var(--sp-32); }
+    .promise { margin-top: var(--sp-32); padding: var(--sp-16) var(--sp-24); font-size: 17px; }
+    .db-photos { grid-template-columns: 1fr; gap: var(--sp-8); }
+
+    .step { padding-top: var(--sp-24); }
+    .tracks, .who-grid { grid-template-columns: 1fr; gap: var(--sp-12); }
+    .track, .who-card { padding: var(--sp-24); }
+    .track ul { margin-top: var(--sp-12); }
+    .track li { padding: var(--sp-12) 0; }
+    .who-card .btn { align-self: stretch; }
+
+    summary { font-size: 17px; padding: var(--sp-24) 0; }
+    details p { padding-bottom: var(--sp-24); }
+
+    form { gap: var(--sp-24); }
+    .q { font-size: 16px; margin-bottom: var(--sp-8); }
+    .picks { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .pick span { height: 52px; font-size: 15px; }
+    .inputs { grid-template-columns: 1fr; }
+    .call { margin-top: var(--sp-24); padding-top: var(--sp-24); }
+    footer .wrap { padding-top: var(--sp-32); padding-bottom: var(--sp-32); }
+
+    .btn { height: 56px; font-size: 17px; }
+    .btn:hover { transform: none; }
+
+    .m-cta {
+      display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+      padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom));
+      background: var(--black); border-top: 1px solid var(--line-dark);
+      transform: translateY(110%); transition: transform .25s ease;
+    }
+    .m-cta.show { transform: none; }
+    .m-cta .btn { width: 100%; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .btn, .split { transition: none; }
+    .btn, .split, .m-cta { transition: none; }
     .btn:hover { transform: none; }
   }
 </style>
@@ -258,7 +335,7 @@
       <span class="panel-tag">시장 01 · 베이비페어</span>
       <p class="big">매주</p>
       <p class="big-sub">박람회가 열려요</p>
-      <p class="panel-desc">태아보험 상담에서 부부 보장분석까지.<br>박람회는 골라서 가고, 산모교실도 월 2~3회.</p>
+      <p class="panel-desc">태아보험 상담에서 부부 보장분석까지. <br>박람회는 골라서 가고, 산모교실도 월 2~3회.</p>
       <span class="panel-more">베이비페어 자세히 보기 →</span>
     </div>
   </a>
@@ -267,7 +344,7 @@
       <span class="panel-tag">시장 02 · 사업자 DB</span>
       <p class="big">매일 2건</p>
       <p class="big-sub">대표님이 배정돼요</p>
-      <p class="panel-desc">평일 기준, 한 사람당 매일 2건.<br>매출 확인된 법인·개인사업자 대표님, DB 값은 0원.</p>
+      <p class="panel-desc">평일 기준, 한 사람당 매일 2건. <br>매출 확인된 법인·개인사업자 대표님, DB 값은 0원.</p>
       <div class="mini-feed" aria-hidden="true">
         <span class="mini-sample">예시</span>
         <div class="mini"><b>○○○ 대표님</b><span>제조업 · 법인 · 상담 희망 법인전환</span></div>
@@ -498,6 +575,8 @@
   </div>
 </footer>
 
+<div class="m-cta" id="mCta"><a class="btn yellow" href="#apply">상담 신청하기</a></div>
+
 <script>
   // 신청 받을 곳이 정해지면 주소를 넣는다 (예: 구글 Apps Script 웹앱 URL)
   const ENDPOINT = '';
@@ -531,6 +610,13 @@
     form.style.display = 'none';
     document.getElementById('formDone').style.display = 'block';
   });
+
+  // 모바일 하단 버튼: 첫 화면을 지나면 보이고, 신청 영역에서는 숨김
+  const mCta = document.getElementById('mCta');
+  let pastTop = false, atApply = false;
+  const syncCta = () => mCta.classList.toggle('show', pastTop && !atApply);
+  new IntersectionObserver(([en]) => { pastTop = !en.isIntersecting; syncCta(); }).observe(document.querySelector('.split'));
+  new IntersectionObserver(([en]) => { atApply = en.isIntersecting; syncCta(); }).observe(document.getElementById('apply'));
 </script>
 </body>
 </html>
