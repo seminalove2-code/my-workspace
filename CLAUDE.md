@@ -6,5 +6,6 @@
 
 - `notes/business/recruiting-brief.md`: 리쿠르팅 홈페이지 브리프 (시장, 원칙, 미확인 사항)
 - `notes/business/recruiting-plan.md`: 리쿠르팅 운영 기획 (타깃, 채널, 채용 흐름, 정착, 지표)
+- `notes/business/shortform-script.md`: 리쿠르팅 숏폼(릴스·쇼츠) 대본
 
 대화에서 새로 확인된 사실은 해당 브리프에 바로 반영하고 커밋한다.
