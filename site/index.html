@@ -151,6 +151,9 @@
   .item .time { font-size: var(--fs-14); color: var(--gray-3); }
   .item .meta { grid-column: 1 / -1; font-size: var(--fs-16); color: var(--gray-3); }
   .item .want { grid-column: 1 / -1; justify-self: start; font-size: var(--fs-14); font-weight: 700; color: var(--yellow); border: 1px solid #5a4f12; padding: 3px 10px; border-radius: 4px; }
+  .stat { display: flex; align-items: baseline; gap: var(--sp-16); margin-top: var(--sp-32); padding: var(--sp-16) 0; border-top: 2px solid var(--black); border-bottom: 2px solid var(--black); }
+  .stat b { font-size: var(--fs-72); font-weight: 900; line-height: 1; letter-spacing: -0.05em; }
+  .stat > span { font-size: var(--fs-20); font-weight: 700; }
   .proof { list-style: none; margin-top: var(--sp-48); display: grid; gap: var(--sp-16); }
   .proof li { padding-left: var(--sp-24); position: relative; color: #dcdcdc; }
   .proof li::before { content: ""; position: absolute; left: 0; top: 11px; width: 10px; height: 10px; background: var(--yellow); }
@@ -296,6 +299,9 @@
     .item .who { font-size: 18px; }
     .item .meta { font-size: 14px; }
     .proof { margin-top: var(--sp-32); }
+    .stat { margin-top: var(--sp-24); }
+    .stat b { font-size: 56px; }
+    .stat > span { font-size: 16px; }
     .promise { margin-top: var(--sp-32); padding: var(--sp-16) var(--sp-24); font-size: 17px; }
     .db-photos { grid-template-columns: 1fr; gap: var(--sp-8); }
 
@@ -353,9 +359,9 @@
   <a class="panel db-panel" href="#db">
     <div class="panel-in">
       <span class="panel-tag">시장 02 · 사업자 DB</span>
-      <p class="big">매일 2건</p>
-      <p class="big-sub">대표님이 배정돼요</p>
-      <p class="panel-desc">평일 기준, 한 사람당 매일 2건. <br>매출 확인된 법인·개인사업자 대표님, DB 값은 0원.</p>
+      <p class="big"><span data-stat="count">429</span>명</p>
+      <p class="big-sub">대표님이 먼저 신청했어요</p>
+      <p class="panel-desc"><span data-stat="month">이번 달</span> 사업자 상담 신청 수예요. <br>합류하면 평일 매일 2건씩 배정, DB 값은 0원.</p>
       <div class="mini-feed" aria-hidden="true">
         <span class="mini-sample">예시</span>
         <div class="mini"><b>○○○ 대표님</b><span>제조업 · 법인 · 상담 희망 법인전환</span></div>
@@ -404,7 +410,11 @@
       <div>
         <p class="eyebrow">시장 02 · 사업자 상담 DB</p>
         <h2>이런 대표님들이<br>배정돼요</h2>
-        <p class="lead">매출 확인된 법인, 개인사업자 대표님이에요. DB 값은 안 받아요. 한 달이면 대표님만 40명 넘게 만나요.</p>
+        <div class="stat">
+          <b><span data-stat="count">429</span>명</b>
+          <span><span data-stat="month">이번 달</span> 상담 신청</span>
+        </div>
+        <p class="lead">연매출 5억, 10억 하는 대표님들이 먼저 신청했어요. 저희가 전화 돌린 게 아니에요. 합류하면 이 DB를 평일 매일 2건씩 받고, 한 달이면 대표님만 40명 넘게 만나요.</p>
         <ul class="proof">
           <li>법인, 개인사업자 대표님만 배정</li>
           <li>한 사람당 평일 매일 2건, 무료</li>
@@ -593,6 +603,10 @@
 <div class="m-cta" id="mCta"><a class="btn yellow" href="#apply">상담 신청하기</a></div>
 
 <script>
+  // 이번 달 사업자 상담 신청 수. 매달 여기 숫자만 바꾸면 페이지 전체에 반영된다
+  const STAT = { count: 429, month: '2026년 10월' };
+  document.querySelectorAll('[data-stat]').forEach(el => { el.textContent = STAT[el.dataset.stat]; });
+
   // 신청 받을 곳이 정해지면 주소를 넣는다 (예: 구글 Apps Script 웹앱 URL)
   const ENDPOINT = '';
   const form = document.getElementById('applyForm');
