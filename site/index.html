@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>인카다이렉트 설계사 모집</title>
 <meta name="description" content="매주 베이비페어, 매달 산모교실, 평일 매일 2건 사업자 상담 DB 무료. 인카다이렉트 신입·경력 설계사 모집">
+<!-- 카톡·인스타 공유 미리보기. 도메인이 정해지면 og:url, og:image 를 https:// 전체 주소로 바꾼다 -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="영업할 데 없어서 고민이셨죠? 시장은 저희가 드릴게요 | 인카다이렉트">
+<meta property="og:description" content="매주 베이비페어, 평일 매일 2건 사업자 DB 무료. 신입·경력 설계사 모집">
+<meta property="og:image" content="og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#111111">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   :root {
@@ -330,7 +341,7 @@
 
 <section class="split" aria-label="영업할 시장 두 곳">
   <a class="panel fair-panel" href="#fair">
-    <div class="photo"><span class="cap">사진 자리: 베이비페어 부스, 상담 중인 장면 (세로로 잘려도 되는 사진)</span></div>
+    <div class="photo" data-src="images/hero-fair.jpg" data-alt="베이비페어 부스에서 상담하는 모습"><span class="cap">사진 자리: 베이비페어 부스, 상담 중인 장면 → images/hero-fair.jpg</span></div>
     <div class="panel-in">
       <span class="panel-tag">시장 01 · 베이비페어</span>
       <p class="big">매주</p>
@@ -363,7 +374,7 @@
 <section class="sec dark" id="fair">
   <div class="wrap">
     <div class="fair">
-      <div class="photo"><span class="cap">사진 자리: 박람회장 전경, 사람 많은 장면</span></div>
+      <div class="photo" data-src="images/fair-hall.jpg" data-alt="베이비페어 박람회장 전경"><span class="cap">사진 자리: 박람회장 전경 → images/fair-hall.jpg</span></div>
       <div>
         <p class="eyebrow">시장 01 · 베이비페어</p>
         <h2>태아보험 상담으로 시작해서<br>부부 보장분석까지</h2>
@@ -382,7 +393,7 @@
         <h3>한 달에 2~3번은<br>산모교실에서 만나요</h3>
         <p>출산 앞둔 젊은 부부를 박람회보다 더 가까운 자리에서 만나요. 태아보험부터 부부 보장분석까지 이야기할 시간이 길어요.</p>
       </div>
-      <div class="photo"><span class="cap">사진 자리: 산모교실 진행 장면</span></div>
+      <div class="photo" data-src="images/class.jpg" data-alt="산모교실 진행 모습"><span class="cap">사진 자리: 산모교실 진행 장면 → images/class.jpg</span></div>
     </div>
   </div>
 </section>
@@ -417,8 +428,8 @@
       </div>
     </div>
     <div class="db-photos">
-      <div class="photo"><span class="cap">사진 자리: 대표님 사무실 상담 장면 (뒷모습 가능)</span></div>
-      <div class="photo"><span class="cap">사진 자리: 법인교육 세미나</span></div>
+      <div class="photo" data-src="images/biz-meeting.jpg" data-alt="사업자 대표님과 상담하는 모습"><span class="cap">사진 자리: 대표님 사무실 상담 장면 → images/biz-meeting.jpg</span></div>
+      <div class="photo" data-src="images/biz-seminar.jpg" data-alt="법인교육 세미나 모습"><span class="cap">사진 자리: 법인교육 세미나 → images/biz-seminar.jpg</span></div>
     </div>
   </div>
 </section>
@@ -516,6 +527,10 @@
         <p>바로는 어려워요. 그래서 인보험부터 시작하고, 사업자 상담은 선배 동행부터 해요.</p>
       </details>
       <details>
+        <summary>사업자 DB는 어떤 분들이에요?</summary>
+        <p>매출이 확인된 법인, 개인사업자 대표님이에요. 정책자금, 법인전환, 정관변경 상담으로 이어져요.</p>
+      </details>
+      <details>
         <summary>신입은 뭐부터 하나요?</summary>
         <p>베이비페어와 산모교실에서 태아보험 상담, 부부 보장분석부터 해요. 고객 앞에서 말하는 게 익숙해지면 사업자 상담으로 넘어가요.</p>
       </details>
@@ -556,7 +571,7 @@
             <input type="tel" name="phone" placeholder="010-0000-0000" inputmode="numeric" autocomplete="tel" aria-label="연락처">
           </div>
         </fieldset>
-        <label class="agree"><input type="checkbox" name="agree"><span>상담 연락을 위한 개인정보 수집에 동의해요. <a href="#">개인정보처리방침</a></span></label>
+        <label class="agree"><input type="checkbox" name="agree"><span>상담 연락을 위한 개인정보 수집에 동의해요. <a href="privacy.html" target="_blank">개인정보처리방침</a></span></label>
         <p class="error" id="formError" role="alert"></p>
         <button class="btn yellow" type="submit">상담 신청하기</button>
       </form>
@@ -571,7 +586,7 @@
 <footer>
   <div class="wrap">
     <span class="logo">인카다이렉트</span>
-    <span><a href="#">개인정보처리방침</a></span>
+    <span><a href="privacy.html">개인정보처리방침</a></span>
   </div>
 </footer>
 
@@ -604,11 +619,21 @@
     if (!data.agree) return err.textContent = '개인정보 수집에 동의해주세요.';
     err.textContent = '';
     if (ENDPOINT) {
-      try { await fetch(ENDPOINT, { method: 'POST', body: new URLSearchParams(data) }); }
+      // 구글 Apps Script는 응답을 읽을 수 없으므로 no-cors로 보낸다 (google-sheets.gs 참고)
+      try { await fetch(ENDPOINT, { method: 'POST', mode: 'no-cors', body: new URLSearchParams({ ...data, page: location.href }) }); }
       catch (_) { return err.textContent = '전송에 실패했어요. 잠시 후 다시 시도해주세요.'; }
     }
     form.style.display = 'none';
     document.getElementById('formDone').style.display = 'block';
+  });
+
+  // 사진: images/ 폴더에 파일이 있으면 자리 표시 대신 사진을 보여준다
+  document.querySelectorAll('.photo[data-src]').forEach(box => {
+    const img = new Image();
+    img.alt = box.dataset.alt || '';
+    img.decoding = 'async';
+    img.onload = () => { box.querySelector('.cap')?.remove(); box.style.background = 'none'; box.prepend(img); };
+    img.src = box.dataset.src;
   });
 
   // 모바일 하단 버튼: 첫 화면을 지나면 보이고, 신청 영역에서는 숨김
